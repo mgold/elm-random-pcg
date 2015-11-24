@@ -28,6 +28,8 @@ Elm.Native.Random.PCG.make = function(localRuntime) {
   var defaultIncHi = 0x14057b7e;
   var defaultIncLo = 0xf767814f;
 
+  var nextInc = 1;
+
   function initialSeed2(seedHi, seedLo){
     var state = new Int32Array([ 0, 0, defaultIncHi, defaultIncLo ]);
     state = next(state)[1];
@@ -159,9 +161,17 @@ Elm.Native.Random.PCG.make = function(localRuntime) {
     return Tuple2(scaled, result2[1]);
   };
 
+  function split(state){
+    var newState = state.slice();
+    newState[2] += nextInc;
+    nextInc += 1;
+    return Tuple2(next(state)[1], next(newState)[1]);
+  }
+
   return localRuntime.Native.Random.PCG.values = {
     initialSeed2 : F2(initialSeed2),
     intt : F3(intt),
-    floatt : F3(floatt)
+    floatt : F3(floatt),
+    split : split
   };
 };

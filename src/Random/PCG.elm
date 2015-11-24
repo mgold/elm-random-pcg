@@ -5,7 +5,7 @@ module Random.PCG
     , map, map2, map3, map4, map5
     , constant, andThen
     , minInt, maxInt
-    , generate, initialSeed
+    , generate, initialSeed, split
     )
   where
 
@@ -39,7 +39,7 @@ module. It has a period of roughly 2.30584e18.
 @docs constant, map, map2, map3, map4, map5, andThen
 
 # Run a Generator
-@docs generate, Seed, initialSeed
+@docs generate, Seed, initialSeed, split
 
 # Constants
 @docs maxInt, minInt
@@ -358,7 +358,7 @@ initialSeed s =
   Native.Random.PCG.initialSeed2 0 s
 
 
-{- Split a seed into two new seeds. Each seed will generate different random
+{-| Split a seed into two new seeds. Each seed will generate different random
 numbers.
 
 Let's say you have have many independent components which will each want to
@@ -379,4 +379,5 @@ new seeds to a component, and keep the other to repeat the process.
             (c seed1 :: tail, seed3)
 
 -}
---split : Seed -> (Seed, Seed)
+split : Seed -> (Seed, Seed)
+split = Native.Random.PCG.split
