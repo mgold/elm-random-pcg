@@ -246,9 +246,14 @@ new seeds to a component, and keep the other to repeat the process.
 
 -}
 split : Seed -> (Seed, Seed)
-split seed =
-  --TODO: do better than this.
-  (seed, seed)
+split seed0 =
+  let
+    gen1 = int minInt maxInt
+    gen4 = map4 (,,,) gen1 gen1 gen1 gen1
+    ((a,b,c,d), seed1) = generate gen4 seed0
+    seed2 = Seed (Int64 a b) (Int64 c d)
+  in
+    (next seed1, next seed2)
 
 
 {-| Create a generator that produces boolean values. The following example
