@@ -124,7 +124,7 @@ initialSeed2 stateHi stateLo =
     (Seed state1 _) = next seed0
     state2 = add64 state1 <| Int64 (stateHi>>>0) (stateLo>>>0)
   in
-    Seed state2 zero |> next
+    Seed state2 incr |> next
 
 
 magicFactor = Int64 0x5851f42d 0x4c957f2d
@@ -256,7 +256,8 @@ split seed0 =
     gen1 = int minInt maxInt
     gen4 = map4 (,,,) gen1 gen1 gen1 gen1
     ((a,b,c,d), seed1) = generate gen4 seed0
-    seed2 = Seed (Int64 a b) (Int64 c d)
+    odd = (d `Bitwise.or` 1) >>> 0
+    seed2 = Seed (Int64 a b) (Int64 c odd)
   in
     (next seed1, next seed2)
 
