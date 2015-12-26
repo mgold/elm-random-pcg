@@ -9,12 +9,7 @@ module Random.PCG
   )
   where
 
-{-| A drop-in replacement for the standard `Random` library. Use `import
-Random.PCG as Random` and everything will continue to work. The main reason
-you'd want to use this library instead is that it supports *splitting* seeds.
-This is useful for lazy randomness and for isolated components.
-
-This library helps you generate pseudo-random values.
+{-| Generate (psuedo)random numbers and values.
 
 This library is all about building [`generators`](#Generator) for whatever
 type of values you need. There are a bunch of primitive generators like
@@ -24,19 +19,8 @@ generators with functions like [`list`](#list) and [`map`](#map).
 You use a `Generator` by running the [`generate`](#generate) function, which
 also takes a random seed, and passes back a new seed. You should never use the
 same seed twice because you will get the same result! If you need random values
-across many frames, you should store the most recent seed in your model.
-
---TODO update this
-*Note:* This is an implementation of the Portable Combined Generator of
-L'Ecuyer for 32-bit computers. It is almost a direct translation from the
-[System.Random](http://hackage.haskell.org/package/random-1.0.1.1/docs/System-Random.html)
-module. It has a period of roughly 2.30584e18.
-
-Random.PCG for Elm
-Max Goldstein
-
-PCG by M. E. O'Neil: http://www.pcg-random.org/
-JS port by Thom Chiovoloni (MIT license): https://github.com/thomcc/pcg-random
+across many frames, you should store the most recent seed in your model. If you
+need several independent models, you can split seeds into more seeds.
 
 # Generators
 @docs Generator
@@ -88,17 +72,11 @@ type Seed = Seed Int64 Int64 -- state and increment
 generate random values. If you use the same seed many times, it will result
 in the same thing every time!
 
-You should call this function only once in your entire program. If you call it
-on sequential numbers (like the current time over a few seconds), each seed will
-generate nearly-identical results. To obtain a good starting seed value, run
-`Math.floor(Math.random()*0xFFFFFFFF)` in a JavaScript console. If you want each
-run of your program to be unique, you can pass this value in through a port.
-
-    -- DON'T DO THIS: it generates `True` ten times!
-    List.map (\i -> generate bool (initialSeed i) |> fst) [0..10]
-
-    -- DO THIS INSTEAD: it generates a reasonable list, and keeps the new seed.
-    (bools, newSeed) = generate (list 10 bool) (initialSeed 999999999)
+Although this library is more forgiving of poor seed choice than core, you
+should still call this function only once in your entire program. To obtain a
+good starting seed value, run `Math.floor(Math.random()*0xFFFFFFFF)` in a
+JavaScript console. If you want each run of your program to be unique, you can
+pass this value in through a port.
 -}
 initialSeed : Int -> Seed
 initialSeed = initialSeed2 0
