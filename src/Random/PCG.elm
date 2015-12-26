@@ -119,8 +119,8 @@ initialSeed2 : Int -> Int -> Seed
 initialSeed2 stateHi stateLo =
   let
     zero = Int64 0 0
-    inc = Int64 0x14057b7e 0xf767814f
-    seed0 = Seed zero inc
+    incr = Int64 0x14057b7e 0xf767814f
+    seed0 = Seed zero incr
     (Seed state1 _) = next seed0
     state2 = add64 state1 <| Int64 (stateHi>>>0) (stateLo>>>0)
   in
