@@ -447,7 +447,7 @@ uppercase and lowercase letters.
         if b then genUppercaseLetter else genLowercaseLetter
 -}
 andThen : Generator a -> (a -> Generator b) -> Generator b
-andThen (Generator genA) callback =
+andThen (Generator generateA) callback =
   Generator <| \seed ->
     let
       (result, newSeed) =
