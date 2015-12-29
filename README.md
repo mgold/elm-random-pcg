@@ -1,5 +1,4 @@
 # Random.PCG for Elm
-Max Goldstein
 
 An alternate random number generator. You can `import Random.PCG as Random` and everything will continue to
 work (except [elm-random-extra](http://package.elm-lang.org/packages/NoRedInk/elm-random-extra/2.1.1/Random-Extra)).

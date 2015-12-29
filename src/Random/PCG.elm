@@ -423,32 +423,40 @@ map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (G
     in
       (func a b c d e, seed5)
 
--- TODO add andMap
+{-| Map over any number of generators.
 
-{-| Chain random operations, threading through the seed. In the following
-example, we will generate a random letter by putting together uppercase and
-lowercase letters.
+
+    randomPerson =
+      person `map` genFirstName `andMap` genLastName `andMap` genBirthday `andMap` genPhoneNumber
+-}
+andMap : Generator (a -> b) -> Generator a -> Generator b
+andMap =
+  map2 (<|)
+
+
+{-| Chain random operations by providing a callback that accepts a
+randomly-generated value. This all happens inside the generator, and the seed is
+managed for you.
+
+In the following example, we will generate a random letter by putting together
+uppercase and lowercase letters.
 
     letter : Generator Char
     letter =
       bool `andThen` \b ->
-        if b then uppercaseLetter else lowercaseLetter
-
-    -- bool : Generator Bool
-    -- uppercaseLetter : Generator Char
-    -- lowercaseLetter : Generator Char
+        if b then genUppercaseLetter else genLowercaseLetter
 -}
 andThen : Generator a -> (a -> Generator b) -> Generator b
-andThen (Generator generate) callback =
+andThen (Generator genA) callback =
   Generator <| \seed ->
     let
       (result, newSeed) =
-        generate seed
+        generateA seed
 
-      (Generator genB) =
+      (Generator generateB) =
         callback result
     in
-      genB newSeed
+      generateB newSeed
 
 
 {-| Generate a random value as specified by a given `Generator`.
@@ -478,7 +486,10 @@ generate : Generator a -> Seed -> (a, Seed)
 generate (Generator generator) seed =
     generator seed
 
+---------------------------------------------------------------
 -- Arithmetic helpers, because JS does not have 64-bit integers
+---------------------------------------------------------------
+
 mul32 : Int -> Int -> Int
 mul32 a b =
   let
