@@ -9,23 +9,22 @@ module Random.PCG
   )
   where
 
-{-| Generate (psuedo)random numbers and values.
+{-| Generate psuedo-random numbers and values, by constructing
+[generators](#Generator) for them. There are a bunch of basic generators like
+[`bool`](#bool) and [`int`](#int) that you can build up into fancier generators
+with functions like [`list`](#list) and [`map`](#map).
 
-This library is all about building [`generators`](#Generator) for whatever
-type of values you need. There are a bunch of primitive generators like
-[`bool`](#bool) and [`int`](#int) that you can build up into fancier
-generators with functions like [`list`](#list) and [`map`](#map).
-
-You use a `Generator` by running the [`generate`](#generate) function, which
-also takes a random seed, and passes back a new seed. You should never use the
-same seed twice because you will get the same result! If you need random values
-across many frames, you should store the most recent seed in your model. If you
-need several independent models, you can split seeds into more seeds.
+You run a `Generator` by calling the [`generate`](#generate) function, which
+also takes a random [`Seed`](#Seed), and passes back a new seed. You should
+never use the same seed twice because you will get the same result! If you need
+random values across many frames, you should store the most recent seed in your
+model. If you need several independent models, you can [`split`](#split) seeds
+into more seeds.
 
 # Generators
 @docs Generator
 
-# Primitive Generators
+# Basic Generators
 @docs bool, int, float
 
 # Data Structure Generators
