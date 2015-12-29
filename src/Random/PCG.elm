@@ -83,6 +83,9 @@ initialSeed = initialSeed2 0
 {-| Like `initialSeed`, but takes two integers to fully initialize the random
 number generator. Only the least significant 32 bits of each integer matter.
 
+In this example we initialize the seed with two randomized values from
+JavaScript. Out program will be different every time.
+
     -- Elm
     port randomSeed : (Int, Int)
 
@@ -90,7 +93,8 @@ number generator. Only the least significant 32 bits of each integer matter.
     seed0 = (uncurry initialSeed2) randomSeed
 
     -- JS
-    TODO figure out port syntax
+    Elm.fullscreen(Elm.ModuleName,
+      {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF), Math.floor(Math.random()*0xFFFFFFFF)] })
 -}
 initialSeed2 : Int -> Int -> Seed
 initialSeed2 stateHi stateLo =
