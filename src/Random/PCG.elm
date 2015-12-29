@@ -107,7 +107,7 @@ initialSeed2 stateHi stateLo =
 
 magicFactor = Int64 0x5851f42d 0x4c957f2d
 
--- derive the next seed
+-- derive the next seed by cranking the LCG
 next : Seed -> Seed
 next (Seed state0 incr) =
   let
@@ -141,10 +141,10 @@ integer : Int -> Seed -> (Int, Seed)
 integer max seed0 =
   -- fast path for power of 2
   if ((max & (max - 1)) == 0)
-  then (peel seed0 & (max - 1), next seed0)
+  then (peel seed0 & (max - 1) >>> 0, next seed0)
   else
     let
-      threshhold = ((-max >>> 0) % max) >>> 0 -- essentially: big % small = small
+      threshhold = ((-max >>> 0) % max) >>> 0 -- essentially: period % max
       accountForBias : Seed -> (Int, Seed)
       accountForBias seed =
         -- in practice this recurses almost never
@@ -234,8 +234,8 @@ split seed0 =
     gen1 = int minInt maxInt
     gen4 = map4 (,,,) gen1 gen1 gen1 gen1
     ((a,b,c,d), seed1) = generate gen4 seed0
-    odd = (d `Bitwise.or` 1) >>> 0
-    seed2 = Seed (Int64 a b) (Int64 c odd)
+    dOdd = (d `Bitwise.or` 1) >>> 0
+    seed2 = Seed (Int64 a b) (Int64 c dOdd)
   in
     (next seed1, next seed2)
 
