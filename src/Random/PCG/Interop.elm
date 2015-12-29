@@ -5,6 +5,7 @@ is useful for library writers who need a splittable PRNG but don't want to
 require client code to use the PCG implementation.
 
 ```elm
+import Random
 import Random.PCG
 import Random.PCG.Interop as Random.PCG
 ```
@@ -16,6 +17,10 @@ import Random
 import Random.PCG
 
 {-| Use the core library's random seed to produce a PCG random seed.
+
+It seems that the package website doesn't show modules in type annotations, so here it is in full:
+
+    fission : Random.Seed -> (Random.PCG.Seed, Random.Seed)
 
 -}
 fission : Random.Seed -> (Random.PCG.Seed, Random.Seed)
