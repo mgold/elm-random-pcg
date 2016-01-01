@@ -2,10 +2,10 @@ module Random.PCG
   ( Generator, Seed
   , bool, int, float
   , list, pair
-  , map, map2, map3, map4, map5
+  , map, map2, map3, map4, map5, andMap
   , constant, andThen
   , minInt, maxInt
-  , generate, initialSeed, initialSeed2, split
+  , generate, initialSeed2, initialSeed, split
   )
   where
 
@@ -22,7 +22,7 @@ model. If you need several independent models, you can [`split`](#split) seeds
 into more seeds.
 
 # Generators
-@docs Generator
+@docs Generator, generate
 
 # Basic Generators
 @docs bool, int, float
@@ -31,10 +31,10 @@ into more seeds.
 @docs pair, list
 
 # Custom Generators
-@docs constant, map, map2, map3, map4, map5, andThen
+@docs constant, map, map2, map3, map4, map5, andMap, andThen
 
-# Run a Generator
-@docs generate, Seed, initialSeed, initialSeed2, split
+# Seeds
+@docs Seed, initialSeed2, initialSeed, split
 
 # Constants
 @docs maxInt, minInt
@@ -52,39 +52,73 @@ type Int64 = Int64 Int Int
 {-| A `Generator` is like a recipe for generating certain random values. So a
 `Generator Int` describes how to generate integers and a `Generator String`
 describes how to generate strings.
-
-To actually *run* a generator and produce the random values, you need to use
-functions like [`generate`](#generate) and [`initialSeed`](#initialSeed).
 -}
 type Generator a =
     Generator (Seed -> (a, Seed))
 
 
-{-| A `Seed` is the source of randomness in this whole system. Whenever
-you want to use a generator, you need to supply a seed. You will get back a new
-seed, which you must use to generate new random numbers.
+{-| Generate a random value as specified by a given `Generator`, using a `Seed`
+and returning a new one.
+
+In the following example, we are trying to generate numbers between 0 and 100
+with the `int 0 100` generator. Each time we call `generate` we need to provide
+a seed. This will produce a random number and a *new* seed to use if we want to
+run other generators later.
+
+    seed0 = initialSeed2 227852860 1498709020
+    (x, seed1) = generate (int 0 100) seed0
+    (y, seed2) = generate (int 0 100) seed1
+    (z, seed3) = generate (int 0 100) seed2
+    [x, y, z] -- [85, 0, 38]
+
+Notice that we use different seeds on each line. This is important! If you use
+the same seed, you get the same results.
+
+    (x, seed1) = generate (int 0 100) seed0
+    (y, seed2) = generate (int 0 100) seed0
+    (z, seed3) = generate (int 0 100) seed0
+    [x,y,z] -- [85, 85, 85]
+
+The rest of the library is how to make generators for any kind of value you
+like, and how to create and manage random seeds.
+-}
+generate : Generator a -> Seed -> (a, Seed)
+generate (Generator generator) seed =
+    generator seed
+
+
+{-| A `Seed` is the source of randomness in the whole system. Whenever you want
+to use a generator, you need to supply a seed. You will get back a new seed,
+which you must use to generate new random numbers. If you use the same seed many
+times, it will result in the same thing every time!
+
+Seeds are created by providing initial values, which should happen only once per
+program. Although this library is more forgiving of poor seed choice than core,
+the best random seeds are drawn uniformly at random from the space of possible
+seeds. You can get a good starting value by running
+`Math.floor(Math.random()*0xFFFFFFFF)` in a JavaScript console.
 -}
 type Seed = Seed Int64 Int64 -- state and increment
 
 
-{-| Create a &ldquo;seed&rdquo; of randomness which makes it possible to
-generate random values. If you use the same seed many times, it will result
-in the same thing every time!
-
-Although this library is more forgiving of poor seed choice than core, you
-should still call this function only once in your entire program. To obtain a
-good starting seed value, run `Math.floor(Math.random()*0xFFFFFFFF)` in a
-JavaScript console. If you want each run of your program to be unique, you can
-pass this value in through a port.
--}
-initialSeed : Int -> Seed
-initialSeed = initialSeed2 0
-
-{-| Like `initialSeed`, but takes two integers to fully initialize the random
+{-| Take two integers to fully initialize the 64-bit state of the random
 number generator. Only the least significant 32 bits of each integer matter.
 
-In this example we initialize the seed with two randomized values from
-JavaScript. Out program will be different every time.
+One can generate values at random and copy them to create a reproducible random
+generator.
+
+    $ node
+    > Math.floor(Math.random()*0xFFFFFFFF)
+    227852860
+    > Math.floor(Math.random()*0xFFFFFFFF)
+    1498709020
+
+    -- Elm
+    seed0 : Seed
+    seed0 = initialSeed2 227852860 1498709020
+
+Alternatively, we can generate the randomized values dynamically and pass them
+through a port. Out program will be different every time.
 
     -- Elm
     port randomSeed : (Int, Int)
@@ -106,6 +140,13 @@ initialSeed2 stateHi stateLo =
     state2 = add64 state1 <| Int64 (stateHi>>>0) (stateLo>>>0)
   in
     Seed state2 incr |> next
+
+
+{-| Like `initialSeed2`, but takes only one integer. Mostly for compatibility
+with core.
+-}
+initialSeed : Int -> Seed
+initialSeed = initialSeed2 0
 
 
 magicFactor = Int64 0x5851f42d 0x4c957f2d
@@ -211,7 +252,8 @@ float min max =
 
 
 {-| Split a seed into two new seeds. Each seed will generate different random
-numbers.
+numbers. Splitting is a reproducible operation; just like generating numbers, it
+will be the same every time.
 
 Let's say you have have many independent components which will each want to
 generate many random numbers. After splitting a seed, you can pass one of the
@@ -284,7 +326,7 @@ pair genA genB =
   map2 (,) genA genB
 
 
-{-| Create a list of random values.
+{-| Create a list of random values of a given length.
 
     floatList : Generator (List Float)
     floatList =
@@ -429,9 +471,11 @@ map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (G
 
 {-| Map over any number of generators.
 
-
     randomPerson =
-      person `map` genFirstName `andMap` genLastName `andMap` genBirthday `andMap` genPhoneNumber
+      person `map` genFirstName
+        `andMap` genLastName
+        `andMap` genBirthday
+        `andMap` genPhoneNumber
 -}
 andMap : Generator (a -> b) -> Generator a -> Generator b
 andMap =
@@ -462,33 +506,6 @@ andThen (Generator generateA) callback =
     in
       generateB newSeed
 
-
-{-| Generate a random value as specified by a given `Generator`.
-
-In the following example, we are trying to generate a number between 0 and 100
-with the `int 0 100` generator. Each time we call `generate` we need to provide
-a seed. This will produce a random number and a *new* seed to use if we want to
-run other generators later.
-
-So here it is done right, where we get a new seed from each `generate` call and
-thread that through.
-
-    seed0 = initialSeed 31415
-
-    -- generate (int 0 100) seed0 ==> (42, seed1)
-    -- generate (int 0 100) seed1 ==> (31, seed2)
-    -- generate (int 0 100) seed2 ==> (99, seed3)
-
-Notice that we use different seeds on each line. This is important! If you use
-the same seed, you get the same results.
-
-    -- generate (int 0 100) seed0 ==> (42, seed1)
-    -- generate (int 0 100) seed0 ==> (42, seed1)
-    -- generate (int 0 100) seed0 ==> (42, seed1)
--}
-generate : Generator a -> Seed -> (a, Seed)
-generate (Generator generator) seed =
-    generator seed
 
 ---------------------------------------------------------------
 -- Arithmetic helpers, because JS does not have 64-bit integers
