@@ -2,7 +2,7 @@
 The purpose of testing the random number generator is twofold: one, show the deficiencies in the core implementation;
 two, show the correctness of the PCG implementation *in Elm*. Because we are testing the Elm implementation, not the PCG
 algorithm, we must feed dieharder a file of already-generated random numbers. I've seen sources recommending 10 million
-random numbers; these test use 24 million, but even so the files are "rewound", as many as 2500 times on later tests.
+random numbers; these tests use 24 million, but even so the files are "rewound", as many as 2500 times on later tests.
 
 For the original 19 diehard tests, the core fails 9 tests while PCG fails none. (One test resulted in "weak" but further
 investigation resulted in passing; we expect this on one test in 100). On the entire battery, core passes 29, fails 75,
