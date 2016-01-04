@@ -285,28 +285,29 @@ split seed0 =
     (next seed1, next seed2)
 
 
-{-| Fast forward a seed the given number of steps, which must be non-negative.
-This allows a single seed to serve as a random-access lookup table of random
-numbers (so long as no one else uses the seed, so [`split`](#split) off your
-own).
+{-| Fast forward a seed the given number of steps, which may be negative (the
+seed will be "rewound"). This allows a single seed to serve as a random-access
+lookup table of random numbers (so long as no one else uses the seed, so
+[`split`](#split) off your own).
 -}
 fastForward : Int -> Seed -> Seed
-fastForward delta0 (Seed state0 incr) =
+fastForward deltaRaw (Seed state0 incr) =
   let
     one = Int64 0 1
     zero = Int64 0 0
+    delta0 = if deltaRaw < 0 then Int64 0xFFFFFFFF deltaRaw else Int64 0 deltaRaw
 
-    helper : Int64 -> Int64 -> Int64 -> Int64 -> Int -> (Int64, Int64)
+    helper : Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> (Int64, Int64)
     helper accMult accPlus curMult curPlus delta =
       let
-        deltaOdd = delta & 1 == 1
+        deltaOdd = isOdd64 delta
         accMult' = if deltaOdd then mul64 accMult curMult else accMult
         accPlus' = if deltaOdd then add64 (mul64 accPlus curMult) curPlus else accPlus
         curPlus' = mul64 (add64 curMult one) curPlus
         curMult' = mul64 curMult curMult
-        newDelta = delta >>> 1
+        newDelta = half64 delta
       in
-        if newDelta == 0 then
+        if newDelta == zero then
           (accMult', accPlus')
         else
           helper accMult' accPlus' curMult' curPlus' newDelta
@@ -586,3 +587,15 @@ add64 (Int64 aHi aLo) (Int64 bHi bLo) =
     hi' = if ((lo >>> 0) < (aLo >>> 0)) then  (hi + 1) `Bitwise.or` 0 else hi
   in
     Int64 hi' lo
+
+half64 : Int64 -> Int64
+half64 (Int64 hi lo) =
+  let
+    shifted = Bitwise.shiftLeft hi 31
+    newLo = (lo >>> 1) `Bitwise.or` shifted
+    newHi = hi >>> 1
+  in
+    Int64 newHi newLo
+
+isOdd64 : Int64 -> Bool
+isOdd64 (Int64 _ lo) = lo & 1 == 1
