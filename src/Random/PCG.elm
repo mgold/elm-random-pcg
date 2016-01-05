@@ -5,7 +5,7 @@ module Random.PCG
   , map, map2, map3, map4, map5, andMap
   , constant, andThen
   , minInt, maxInt
-  , generate, initialSeed2, initialSeed, split
+  , generate, initialSeed2, initialSeed, split, fastForward
   )
   where
 
@@ -34,7 +34,7 @@ into more seeds.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen
 
 # Seeds
-@docs Seed, initialSeed2, initialSeed, split
+@docs Seed, initialSeed2, initialSeed, split, fastForward
 
 # Constants
 @docs maxInt, minInt
@@ -283,6 +283,41 @@ split seed0 =
     seed2 = Seed (Int64 a b) (Int64 c dOdd)
   in
     (next seed1, next seed2)
+
+
+{-| Fast forward a seed the given number of steps, which may be negative (the
+seed will be "rewound"). This allows a single seed to serve as a random-access
+lookup table of random numbers. (To be sure no one else uses the seed,
+[`split`](#split) off your own).
+-}
+fastForward : Int -> Seed -> Seed
+fastForward delta0 (Seed state0 incr) =
+  let
+    one = Int64 0 1
+    zero = Int64 0 0
+
+    helper : Int64 -> Int64 -> Int64 -> Int64 -> Int -> Bool -> (Int64, Int64)
+    helper accMult accPlus curMult curPlus delta repeat =
+      let
+        deltaOdd = delta & 1 == 1
+        accMult' = if deltaOdd then mul64 accMult curMult else accMult
+        accPlus' = if deltaOdd then add64 (mul64 accPlus curMult) curPlus else accPlus
+        curPlus' = mul64 (add64 curMult one) curPlus
+        curMult' = mul64 curMult curMult
+        newDelta = delta >>> 1
+      in
+        if newDelta == 0 then
+          if delta0 < 0 && repeat then
+            helper accMult' accPlus' curMult' curPlus' -1 False
+          else
+            (accMult', accPlus')
+        else
+          helper accMult' accPlus' curMult' curPlus' newDelta repeat
+
+    (accMultFinal, accPlusFinal) = helper one zero magicFactor incr delta0 True
+    state1 = mul64 accMultFinal state0 |> add64 accPlusFinal
+  in
+    Seed state1 incr
 
 
 {-| Create a generator that produces boolean values. The following example
