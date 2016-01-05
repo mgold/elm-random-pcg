@@ -289,6 +289,10 @@ split seed0 =
 seed will be "rewound"). This allows a single seed to serve as a random-access
 lookup table of random numbers. (To be sure no one else uses the seed,
 [`split`](#split) off your own).
+
+    diceRollTable : Int -> Int
+    diceRollTable i =
+      fastForward i mySeed |> generate (int 1 6) |> fst
 -}
 fastForward : Int -> Seed -> Seed
 fastForward delta0 (Seed state0 incr) =
