@@ -287,32 +287,34 @@ split seed0 =
 
 {-| Fast forward a seed the given number of steps, which may be negative (the
 seed will be "rewound"). This allows a single seed to serve as a random-access
-lookup table of random numbers (so long as no one else uses the seed, so
+lookup table of random numbers. (To be sure no one else uses the seed,
 [`split`](#split) off your own).
 -}
 fastForward : Int -> Seed -> Seed
-fastForward deltaRaw (Seed state0 incr) =
+fastForward delta0 (Seed state0 incr) =
   let
     one = Int64 0 1
     zero = Int64 0 0
-    delta0 = if deltaRaw < 0 then Int64 0xFFFFFFFF deltaRaw else Int64 0 deltaRaw
 
-    helper : Int64 -> Int64 -> Int64 -> Int64 -> Int64 -> (Int64, Int64)
-    helper accMult accPlus curMult curPlus delta =
+    helper : Int64 -> Int64 -> Int64 -> Int64 -> Int -> Bool -> (Int64, Int64)
+    helper accMult accPlus curMult curPlus delta repeat =
       let
-        deltaOdd = isOdd64 delta
+        deltaOdd = delta & 1 == 1
         accMult' = if deltaOdd then mul64 accMult curMult else accMult
         accPlus' = if deltaOdd then add64 (mul64 accPlus curMult) curPlus else accPlus
         curPlus' = mul64 (add64 curMult one) curPlus
         curMult' = mul64 curMult curMult
-        newDelta = half64 delta
+        newDelta = delta >>> 1
       in
-        if newDelta == zero then
-          (accMult', accPlus')
+        if newDelta == 0 then
+          if delta0 < 0 && repeat then
+            helper accMult' accPlus' curMult' curPlus' -1 False
+          else
+            (accMult', accPlus')
         else
-          helper accMult' accPlus' curMult' curPlus' newDelta
+          helper accMult' accPlus' curMult' curPlus' newDelta repeat
 
-    (accMultFinal, accPlusFinal) = helper one zero magicFactor incr delta0
+    (accMultFinal, accPlusFinal) = helper one zero magicFactor incr delta0 True
     state1 = mul64 accMultFinal state0 |> add64 accPlusFinal
   in
     Seed state1 incr
@@ -587,15 +589,3 @@ add64 (Int64 aHi aLo) (Int64 bHi bLo) =
     hi' = if ((lo >>> 0) < (aLo >>> 0)) then  (hi + 1) `Bitwise.or` 0 else hi
   in
     Int64 hi' lo
-
-half64 : Int64 -> Int64
-half64 (Int64 hi lo) =
-  let
-    shifted = Bitwise.shiftLeft hi 31
-    newLo = (lo >>> 1) `Bitwise.or` shifted
-    newHi = hi >>> 1
-  in
-    Int64 newHi newLo
-
-isOdd64 : Int64 -> Bool
-isOdd64 (Int64 _ lo) = lo & 1 == 1
