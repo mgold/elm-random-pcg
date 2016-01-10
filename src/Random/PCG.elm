@@ -253,7 +253,8 @@ float min max =
 
 {-| Split a seed into two new seeds. Each seed will generate different random
 numbers. Splitting is a reproducible operation; just like generating numbers, it
-will be the same every time.
+will be the same every time. Similarly, once you split a seed, you must not
+reuse it.
 
 Let's say you have have many independent components which will each want to
 generate many random numbers. After splitting a seed, you can pass one of the
@@ -271,6 +272,22 @@ new seeds to a component, and keep the other to repeat the process.
             (tail, seed3) = makeComponents seed2 cs
           in
             (c seed1 :: tail, seed3)
+
+If you need a known number of seeds, you can obtain them like so:
+
+    generateNSeeds : Int -> Seed -> List Seed
+    generateNSeeds n seed =
+      let
+        helper seeds =
+          if List.length seeds >= n then
+            List.take n seeds
+          else
+            List.concatMap
+              (\seed -> let (a,b) = split seed in [a,b])
+              seeds
+            |> helper
+      in
+        helper [seed]
 
 -}
 split : Seed -> (Seed, Seed)
