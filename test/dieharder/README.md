@@ -17,7 +17,7 @@ implementation. It also writes out the `.txt` data files, and then runs dieharde
 The result log files have been committed to version control; I would have liked to commit the data files but they're
 huge, and only take a few minutes to generate. You are free to alter the random seed in the Elm code, and rerun the
 tests with `sh compile` (which takes several hours to complete). That said, I encourage you to run it long enough to see
-core fail the dieharder test, after only five or six seconds of scrutiny. (The `dieharder` tool is available through most
+core fail the birthday test, after only five or six seconds of scrutiny. (The `dieharder` tool is available through most
 package managers. Once the data files are generated, try `time dieharder -g 202 -f elm-core-random.txt -d 0`.)
 
 The PCG paper uses the TestU01 (e.g. BigCrush) suite; I'm using dieharder since it was easier to get to work
