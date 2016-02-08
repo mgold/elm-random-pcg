@@ -481,7 +481,7 @@ map2 func (Generator genA) (Generator genB) =
 
     hsl : Generator Color.Color
     hsl =
-      map3 Color.hsl (map degrees (int 0 360)) (float 0 1) (float 0 1)
+      map3 Color.hsl (map degrees (float 0 359.9999)) (float 0 1) (float 0 1)
 -}
 map3 : (a -> b -> c -> d) -> Generator a -> Generator b -> Generator c -> Generator d
 map3 func (Generator genA) (Generator genB) (Generator genC) =
@@ -500,7 +500,7 @@ map3 func (Generator genA) (Generator genB) (Generator genC) =
 
     rgba : Generator Color.Color
     rgba =
-      map4 Color.rgb (int 0 255) (int 0 255) (int 0 255) (float 0 1)
+      map4 Color.rgba (int 0 255) (int 0 255) (int 0 255) (float 0 1)
 -}
 map4 : (a -> b -> c -> d -> e) -> Generator a -> Generator b -> Generator c -> Generator d -> Generator e
 map4 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) =
