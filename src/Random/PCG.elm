@@ -289,6 +289,9 @@ If you need a known number of seeds, you can obtain them like so:
       in
         helper [seed]
 
+Split seeds are extremely likely to be distinct for all practical purposes.
+However, it is not proven that there are no pathological cases.
+
 -}
 split : Seed -> (Seed, Seed)
 split seed0 =
