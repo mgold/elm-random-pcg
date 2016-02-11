@@ -180,7 +180,7 @@ peel (Seed (Int64 oldHi oldLo) _) =
     ((xorshifted >>> rot) `Bitwise.or` (xorshifted << rot2)) >>> 0
 
 
-  -- Get a uniformly distributed 32 bit integer between [0, max).
+-- Get a uniformly distributed 32 bit integer between [0, max).
 integer : Int -> Seed -> (Int, Seed)
 integer max seed0 =
   -- fast path for power of 2
@@ -252,9 +252,8 @@ float min max =
 
 
 {-| Split a seed into two new seeds. Each seed will generate different random
-numbers. Splitting is a reproducible operation; just like generating numbers, it
-will be the same every time. Similarly, once you split a seed, you must not
-reuse it.
+numbers. This is useful when you have you need an unknown amount of randomness
+*later* but have to pass back a seed *now*.
 
 Let's say you have have many independent components which will each want to
 generate many random numbers. After splitting a seed, you can pass one of the
@@ -289,9 +288,12 @@ If you need a known number of seeds, you can obtain them like so:
       in
         helper [seed]
 
+Splitting is a reproducible operation; just like generating numbers, it
+will be the same every time. Similarly, once you split a seed, you must not
+reuse it.
+
 Split seeds are extremely likely to be distinct for all practical purposes.
 However, it is not proven that there are no pathological cases.
-
 -}
 split : Seed -> (Seed, Seed)
 split seed0 =
