@@ -118,7 +118,7 @@ generator.
     seed0 = initialSeed2 227852860 1498709020
 
 Alternatively, we can generate the randomized values dynamically and pass them
-through a port. Out program will be different every time.
+through a port. The program will be different every time.
 
     -- Elm
     port randomSeed : (Int, Int)
@@ -128,7 +128,8 @@ through a port. Out program will be different every time.
 
     -- JS
     Elm.fullscreen(Elm.ModuleName,
-      {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF), Math.floor(Math.random()*0xFFFFFFFF)] })
+      {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF),
+                    Math.floor(Math.random()*0xFFFFFFFF)] })
 -}
 initialSeed2 : Int -> Int -> Seed
 initialSeed2 stateHi stateLo =
