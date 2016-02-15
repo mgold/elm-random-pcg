@@ -17,15 +17,15 @@ with functions like [`list`](#list) and [`map`](#map).
 You run a `Generator` by calling the [`generate`](#generate) function, which
 also takes a random [`Seed`](#Seed), and passes back a new seed. You should
 never use the same seed twice because you will get the same result! If you need
-random values across many frames, you should store the most recent seed in your
-model. If you need several independent models, you can [`split`](#split) seeds
-into more seeds.
+random values over time, you should store the most recent seed in your model. If
+you have several independent models, you can [`split`](#split) seeds into more
+seeds.
 
-# Generators
-@docs Generator, generate
+# Getting Started
+@docs Seed, initialSeed2, generate
 
 # Basic Generators
-@docs bool, int, float
+@docs Generator, bool, int, float
 
 # Data Structure Generators
 @docs pair, list
@@ -33,8 +33,8 @@ into more seeds.
 # Custom Generators
 @docs constant, map, map2, map3, map4, map5, andMap, andThen
 
-# Seeds
-@docs Seed, initialSeed2, initialSeed, split, fastForward
+# Working With Seeds
+@docs initialSeed, split, fastForward
 
 # Constants
 @docs maxInt, minInt
@@ -74,13 +74,15 @@ run other generators later.
 Notice that we use different seeds on each line. This is important! If you use
 the same seed, you get the same results.
 
-    (x, seed1) = generate (int 0 100) seed0
-    (y, seed2) = generate (int 0 100) seed0
-    (z, seed3) = generate (int 0 100) seed0
+    (x, _) = generate (int 0 100) seed0
+    (y, _) = generate (int 0 100) seed0
+    (z, _) = generate (int 0 100) seed0
     [x,y,z] -- [85, 85, 85]
 
-The rest of the library is how to make generators for any kind of value you
-like, and how to create and manage random seeds.
+Of course, threading seeds through many calls to `generate` is tedious and
+error-prone. That's why this library includes many functions to build more
+complicated generators, allowing you to call `generate` only a small number of
+times.
 -}
 generate : Generator a -> Seed -> (a, Seed)
 generate (Generator generator) seed =
@@ -555,6 +557,9 @@ uppercase and lowercase letters.
     letter =
       bool `andThen` \b ->
         if b then genUppercaseLetter else genLowercaseLetter
+
+If you find yourself calling `constant` in every branch of the callback, you can
+probably use `map` instead.
 -}
 andThen : Generator a -> (a -> Generator b) -> Generator b
 andThen (Generator generateA) callback =
