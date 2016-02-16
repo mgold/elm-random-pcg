@@ -22,10 +22,10 @@ you have several independent models, you can [`split`](#split) seeds into more
 seeds.
 
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
-which are **not cryptographically secure**.
+and is **not cryptographically secure**.
 
 # Getting Started
-@docs Seed, initialSeed2, generate
+@docs initialSeed2, generate
 
 # Basic Generators
 @docs Generator, bool, int, float
@@ -37,7 +37,7 @@ which are **not cryptographically secure**.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen
 
 # Working With Seeds
-@docs initialSeed, split, fastForward
+@docs initialSeed, split, fastForward, Seed
 
 # Constants
 @docs maxInt, minInt
@@ -92,24 +92,17 @@ generate (Generator generator) seed =
     generator seed
 
 
-{-| A `Seed` is the source of randomness in the whole system. Whenever you want
-to use a generator, you need to supply a seed. You will get back a new seed,
-which you must use to generate new random numbers. If you use the same seed many
-times, it will result in the same thing every time!
-
-Seeds are created by providing initial values, which should happen only once per
-program. Although this library is more forgiving of poor seed choice than core,
-the best random seeds are drawn uniformly at random from the space of possible
-seeds. You can get a good starting value by running
-`Math.floor(Math.random()*0xFFFFFFFF)` in a JavaScript console.
+{-| A `Seed` is the source of randomness in the whole system. It hides the
+current state of the random number generator.
 -}
 type Seed = Seed Int64 Int64 -- state and increment
 
 
 {-| Take two integers to fully initialize the 64-bit state of the random
-number generator. Only the least significant 32 bits of each integer matter.
+number generator. Only the least significant 32 bits of each integer matter, and
+those bits should be as random as possible.
 
-One can generate values at random and copy them to create a reproducible random
+You can generate and copy random integers to create a reproducible "random"
 generator.
 
     $ node
@@ -122,8 +115,8 @@ generator.
     seed0 : Seed
     seed0 = initialSeed2 227852860 1498709020
 
-Alternatively, we can generate the randomized values dynamically and pass them
-through a port. The program will be different every time.
+Alternatively, you can generate the random integers dynamically and pass
+them through a port. The program will be different every time.
 
     -- Elm
     port randomSeed : (Int, Int)
@@ -135,6 +128,9 @@ through a port. The program will be different every time.
     Elm.fullscreen(Elm.ModuleName,
       {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF),
                     Math.floor(Math.random()*0xFFFFFFFF)] })
+
+Either way, you should initialize a random seed only once. After that, whenever
+you use a seed, you'll get another one back.
 -}
 initialSeed2 : Int -> Int -> Seed
 initialSeed2 stateHi stateLo =
