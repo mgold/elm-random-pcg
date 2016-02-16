@@ -21,6 +21,9 @@ random values over time, you should store the most recent seed in your model. If
 you have several independent models, you can [`split`](#split) seeds into more
 seeds.
 
+This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
+which are **not cryptographically secure**.
+
 # Getting Started
 @docs Seed, initialSeed2, generate
 
