@@ -22,7 +22,7 @@ you have several independent models, you can [`split`](#split) seeds into more
 seeds.
 
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
-and is **not cryptographically secure**.
+and is not cryptographically secure.
 
 # Getting Started
 @docs initialSeed2, generate
@@ -68,7 +68,6 @@ with the `int 0 100` generator. Each time we call `generate` we need to provide
 a seed. This will produce a random number and a *new* seed to use if we want to
 run other generators later.
 
-    seed0 = initialSeed2 227852860 1498709020
     (x, seed1) = generate (int 0 100) seed0
     (y, seed2) = generate (int 0 100) seed1
     (z, seed3) = generate (int 0 100) seed2
@@ -102,7 +101,7 @@ type Seed = Seed Int64 Int64 -- state and increment
 number generator. Only the least significant 32 bits of each integer matter, and
 those bits should be as random as possible.
 
-You can generate and copy random integers to create a reproducible "random"
+You can generate and copy random integers to create a reproducible psuedo-random
 generator.
 
     $ node
@@ -115,8 +114,8 @@ generator.
     seed0 : Seed
     seed0 = initialSeed2 227852860 1498709020
 
-Alternatively, you can generate the random integers dynamically and pass
-them through a port. The program will be different every time.
+Alternatively, you can generate the random integers on page load and pass them
+through a port. The program will be different every time.
 
     -- Elm
     port randomSeed : (Int, Int)
@@ -423,7 +422,7 @@ listHelp list n generate seed =
 
 {-| Create a generator that always produces the value provided. This is useful
 when creating complicated chained generators and you need to handle a simple
-case.
+case. It's also useful for the base case of recursive generators.
 -}
 constant : a -> Generator a
 constant value =
