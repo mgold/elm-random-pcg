@@ -2,7 +2,7 @@ module Random.PCG
   ( Generator, Seed
   , bool, int, float
   , list, pair
-  , map, map2, map3, map4, map5, andMap
+  , map, map2, map3, map4, map5, andMap, filter
   , constant, andThen
   , minInt, maxInt
   , generate, initialSeed2, initialSeed, split, fastForward
@@ -34,7 +34,7 @@ and is not cryptographically secure.
 @docs pair, list
 
 # Custom Generators
-@docs constant, map, map2, map3, map4, map5, andMap, andThen
+@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
 @docs initialSeed, split, fastForward, Seed
@@ -570,6 +570,23 @@ andThen (Generator generateA) callback =
         callback result
     in
       generateB newSeed
+
+{-| Filter a generator so that all generated values satisfy the given predicate.
+If the predicate is unsatisfiable, the generator will not terminate.
+
+    evens : Generator Int
+    evens =
+      filter (\i -> i % 2 == 0) (int minInt maxInt)
+
+    badCrashingGenerator =
+      filter (\_ -> False) anotherGenerator
+-}
+filter : (a -> Bool) -> Generator a -> Generator a
+filter predicate generator =
+  generator `andThen` (\a ->
+    if predicate a
+    then constant a
+    else filter predicate generator)
 
 
 ---------------------------------------------------------------
