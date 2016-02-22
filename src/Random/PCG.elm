@@ -73,7 +73,7 @@ run other generators later.
     (z, seed3) = generate (int 0 100) seed2
     [x, y, z] -- [85, 0, 38]
 
-Notice that we use different seeds on each line. This is important! If you use
+Notice that we use different seeds on each line. This is important! If you reuse
 the same seed, you get the same results.
 
     (x, _) = generate (int 0 100) seed0
