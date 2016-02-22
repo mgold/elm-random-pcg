@@ -571,15 +571,22 @@ andThen (Generator generateA) callback =
     in
       generateB newSeed
 
+
 {-| Filter a generator so that all generated values satisfy the given predicate.
-If the predicate is unsatisfiable, the generator will not terminate.
 
     evens : Generator Int
     evens =
       filter (\i -> i % 2 == 0) (int minInt maxInt)
 
+If the predicate is unsatisfiable, the generator will not terminate, your
+application will crash with a stack overflow, and you will be sad. You should
+also avoid predicates that are merely very difficult to satisfy.
+
     badCrashingGenerator =
       filter (\_ -> False) anotherGenerator
+
+    likelyCrashingGenerator =
+      filter (\i -> i % 2000 == 0) (int minInt maxInt)
 -}
 filter : (a -> Bool) -> Generator a -> Generator a
 filter predicate generator =
