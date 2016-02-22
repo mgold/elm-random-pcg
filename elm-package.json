@@ -1,5 +1,5 @@
 {
-    "version": "1.1.0",
+    "version": "1.2.0",
     "summary": "A better, splittable random number generator (easily replaces core/Random)",
     "repository": "https://github.com/mgold/elm-random-pcg.git",
     "license": "BSD3",
