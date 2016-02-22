@@ -1,8 +1,8 @@
 module Random.PCG.Interop where
 
-{-| Provides a method to create a PCG seed from a seed in the core library. This
-is useful for library writers who need a splittable PRNG but don't want to
-require client code to use the PCG implementation.
+{-| Provides a function to create a PCG seed from a seed in the core library.
+This is useful for library writers who need a splittable or most robust PRNG but
+don't want to require client code to use the PCG implementation.
 
 ```elm
 import Random
