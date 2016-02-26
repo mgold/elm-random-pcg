@@ -199,7 +199,7 @@ integer max seed0 =
     in
       accountForBias seed0
 
-{-| Generate 32-bit integers in a given range.
+{-| Generate 32-bit integers in a given range, inclusive.
 
     int 0 10   -- an integer between zero and ten
     int -5 5   -- an integer between -5 and 5
@@ -208,6 +208,10 @@ integer max seed0 =
 
 This function *can* produce values outside of the range [[`minInt`](#minInt),
 [`maxInt`](#maxInt)] but sufficient randomness is not guaranteed.
+
+*Performance note:* This function will be ~1.5x faster if the range (i.e. `max - min + 1`) is a power of two. The
+effect will only be noticable if you are generating tens of thousands of random integers.
+
 -}
 int : Int -> Int -> Generator Int
 int min max =
@@ -225,7 +229,7 @@ bit53 = 9007199254740992.0
 bit27 = 134217728.0
 
 {-| Generate floats in a given range. The following example is a generator
-that produces decimals between 0 and 1.
+that produces numbers between 0 and 1.
 
     probability : Generator Float
     probability =
