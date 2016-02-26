@@ -2,7 +2,7 @@ module Random.PCG
   ( Generator, Seed
   , bool, int, float
   , list, pair
-  , map, map2, map3, map4, map5, andMap, filter
+  , map, map2, map3, map4, map5, andMap, filter, choice
   , constant, andThen
   , minInt, maxInt
   , generate, initialSeed2, initialSeed, split, fastForward
@@ -34,7 +34,7 @@ and is not cryptographically secure.
 @docs pair, list
 
 # Custom Generators
-@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
+@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
 
 # Working With Seeds
 @docs initialSeed, split, fastForward, Seed
@@ -347,14 +347,12 @@ fastForward delta0 (Seed state0 incr) =
     Seed state1 incr
 
 
-{-| Create a generator that produces boolean values. The following example
-simulates a coin flip that may land heads or tails.
+{-| Create a generator that produces boolean values with equal probability. This
+example simulates flipping three coins and checking if they're all heads.
 
-    type Flip = Heads | Tails
-
-    coinFlip : Generator Flip
-    coinFlip =
-        map (\b -> if b then Heads else Tails) bool
+    threeHeads : Generator Bool
+    threeHeads =
+      map3 (\a b c -> a && b && c) bool bool bool
 -}
 bool : Generator Bool
 bool =
@@ -429,12 +427,8 @@ constant value =
   Generator (\seed -> (value, seed))
 
 
-{-| Transform the values produced by a generator. The following examples show
-how to generate booleans and letters based on a basic integer generator.
-
-    bool : Generator Bool
-    bool =
-      map ((==) 1) (int 0 1)
+{-| Transform the values produced by a generator. These examples show how to
+generate letters based on a basic integer generator.
 
     lowercaseLetter : Generator Char
     lowercaseLetter =
@@ -454,14 +448,16 @@ map func (Generator genA) =
       (func a, seed1)
 
 
-{-| Combine two generators.
+{-| Combine two generators. This is useful when you have a function with two
+arguments that both need to be given random inputs.
 
-This function is used to define things like [`pair`](#pair) where you want to
-put two generators together.
-
-    pair : Generator a -> Generator b -> Generator (a,b)
-    pair genA genB =
-      map2 (,) genA genB
+    pointInCircle : Float -> Generator (Float, Float)
+    pointInCircle radius =
+      let
+        r = float 0 radius
+        theta = map degrees (float 0 359.9999)
+      in
+        map2 (curry fromPolar) r theta
 
 -}
 map2 : (a -> b -> c) -> Generator a -> Generator b -> Generator c
@@ -475,8 +471,6 @@ map2 func (Generator genA) (Generator genB) =
 
 
 {-| Combine three generators. This could be used to produce random colors.
-
-    import Color
 
     rgb : Generator Color.Color
     rgb =
@@ -497,9 +491,8 @@ map3 func (Generator genA) (Generator genB) (Generator genC) =
       (func a b c, seed3)
 
 
-{-| Combine four generators.
-
-    import Color
+{-| Combine four generators. This could be used to produce random transparent
+colors.
 
     rgba : Generator Color.Color
     rgba =
@@ -533,11 +526,14 @@ map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (G
 
 {-| Map over any number of generators.
 
+    randomPerson : Generator Person
     randomPerson =
       person `map` genFirstName
-        `andMap` genLastName
-        `andMap` genBirthday
-        `andMap` genPhoneNumber
+          `andMap` genLastName
+          `andMap` genBirthday
+          `andMap` genPhoneNumber
+          `andMap` genAddress
+          `andMap` genEmail
 -}
 andMap : Generator (a -> b) -> Generator a -> Generator b
 andMap =
@@ -594,6 +590,19 @@ filter predicate generator =
     if predicate a
     then constant a
     else filter predicate generator)
+
+
+{-| Choose between two values with equal probability.
+
+    type Flip = Heads | Tails
+
+    coinFlip : Generator Flip
+    coinFlip =
+      choice (Heads, Tails)
+-}
+choice : (a, a) -> Generator a
+choice (x,y) =
+  map (\b -> if b then x else y) bool
 
 
 ---------------------------------------------------------------
