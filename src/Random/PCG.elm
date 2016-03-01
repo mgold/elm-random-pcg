@@ -602,10 +602,10 @@ filter predicate generator =
 
     coinFlip : Generator Flip
     coinFlip =
-      choice (Heads, Tails)
+      choice Heads Tails
 -}
-choice : (a, a) -> Generator a
-choice (x,y) =
+choice : a -> a -> Generator a
+choice x y =
   map (\b -> if b then x else y) bool
 
 
