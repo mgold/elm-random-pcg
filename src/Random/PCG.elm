@@ -37,7 +37,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
 
 # Working With Seeds
-@docs initialSeed, split, fastForward, Seed
+@docs Seed, initialSeed, split, fastForward
 
 # Constants
 @docs maxInt, minInt
@@ -81,7 +81,7 @@ the same seed, you get the same results.
     (z, _) = generate (int 0 100) seed0
     [x,y,z] -- [85, 85, 85]
 
-Of course, threading seeds through many calls to `generate` is tedious and
+As you can see, threading seeds through many calls to `generate` is tedious and
 error-prone. That's why this library includes many functions to build more
 complicated generators, allowing you to call `generate` only a small number of
 times.
@@ -93,6 +93,11 @@ generate (Generator generator) seed =
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
 current state of the random number generator.
+
+Generators, not seeds, are the primary data structure for generating random
+values. Generators are much easier to chain and combine than functions that take
+and return seeds. Creating and managing seeds should happen "high up" in your
+program.
 -}
 type Seed = Seed Int64 Int64 -- state and increment
 
