@@ -436,8 +436,10 @@ constant value =
   Generator (\seed -> (value, seed))
 
 
-{-| Transform the values produced by a generator. These examples show how to
-generate letters based on a basic integer generator.
+{-| Transform the values produced by a generator using a stateless function as a
+callback.
+
+These examples show how to generate letters based on a basic integer generator.
 
     lowercaseLetter : Generator Char
     lowercaseLetter =
@@ -550,16 +552,28 @@ andMap =
 
 
 {-| Chain random operations by providing a callback that accepts a
-randomly-generated value. This all happens inside the generator, and the seed is
-managed for you.
+randomly-generated value. The random value can be used to drive more randomness.
 
-In the following example, we will generate a random letter by putting together
-uppercase and lowercase letters.
+The argument order matches `andThen`s from core, but requires the use of `flip`
+to match `map` or work with `|>` chains.
 
-    letter : Generator Char
-    letter =
-      bool `andThen` \b ->
-        if b then genUppercaseLetter else genLowercaseLetter
+This example shows how we can use `andThen` to generate a list of random values
+*and* random length. Then we use `map` to apply a stateless function to that
+list. Assume we already have `genName : Generator String` defined.
+
+    authors : Generator String
+    authors =
+      int 1 5 -- number of authors
+      |> (flip andThen) (\i -> list i genName)
+      |> map (\ns ->
+        case ns of
+          [n] ->
+            "Author: " ++ n
+          n::ns ->
+            "Authors: " ++ String.join ", " ns ++ " and " ++ n
+          [] ->
+            "This can't happen"
+        )
 
 If you find yourself calling `constant` in every branch of the callback, you can
 probably use `map` instead.
