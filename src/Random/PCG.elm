@@ -464,7 +464,7 @@ arguments that both need to be given random inputs.
     pointInCircle radius =
       let
         r = float 0 radius
-        theta = map degrees (float 0 359.9999)
+        theta = map degrees (float 0 360)
       in
         map2 (curry fromPolar) r theta
 
@@ -487,7 +487,7 @@ map2 func (Generator genA) (Generator genB) =
 
     hsl : Generator Color.Color
     hsl =
-      map3 Color.hsl (map degrees (float 0 359.9999)) (float 0 1) (float 0 1)
+      map3 Color.hsl (map degrees (float 0 360)) (float 0 1) (float 0 1)
 -}
 map3 : (a -> b -> c -> d) -> Generator a -> Generator b -> Generator c -> Generator d
 map3 func (Generator genA) (Generator genB) (Generator genC) =
