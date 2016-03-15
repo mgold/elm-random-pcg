@@ -2,7 +2,7 @@ module Random.PCG
   ( Generator, Seed
   , bool, int, float
   , list, pair
-  , map, map2, map3, map4, map5, andMap, filter
+  , map, map2, map3, map4, map5, andMap, filter, choice
   , constant, andThen
   , minInt, maxInt
   , generate, initialSeed2, initialSeed, split, fastForward
@@ -34,10 +34,10 @@ and is not cryptographically secure.
 @docs pair, list
 
 # Custom Generators
-@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
+@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
 
 # Working With Seeds
-@docs initialSeed, split, fastForward, Seed
+@docs Seed, initialSeed, split, fastForward
 
 # Constants
 @docs maxInt, minInt
@@ -81,7 +81,7 @@ the same seed, you get the same results.
     (z, _) = generate (int 0 100) seed0
     [x,y,z] -- [85, 85, 85]
 
-Of course, threading seeds through many calls to `generate` is tedious and
+As you can see, threading seeds through many calls to `generate` is tedious and
 error-prone. That's why this library includes many functions to build more
 complicated generators, allowing you to call `generate` only a small number of
 times.
@@ -93,6 +93,11 @@ generate (Generator generator) seed =
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
 current state of the random number generator.
+
+Generators, not seeds, are the primary data structure for generating random
+values. Generators are much easier to chain and combine than functions that take
+and return seeds. Creating and managing seeds should happen "high up" in your
+program.
 -}
 type Seed = Seed Int64 Int64 -- state and increment
 
@@ -199,7 +204,7 @@ integer max seed0 =
     in
       accountForBias seed0
 
-{-| Generate 32-bit integers in a given range.
+{-| Generate 32-bit integers in a given range, inclusive.
 
     int 0 10   -- an integer between zero and ten
     int -5 5   -- an integer between -5 and 5
@@ -208,6 +213,10 @@ integer max seed0 =
 
 This function *can* produce values outside of the range [[`minInt`](#minInt),
 [`maxInt`](#maxInt)] but sufficient randomness is not guaranteed.
+
+*Performance note:* This function will be ~1.5x faster if the range (i.e. `max - min + 1`) is a power of two. The
+effect will only be noticable if you are generating tens of thousands of random integers.
+
 -}
 int : Int -> Int -> Generator Int
 int min max =
@@ -225,7 +234,7 @@ bit53 = 9007199254740992.0
 bit27 = 134217728.0
 
 {-| Generate floats in a given range. The following example is a generator
-that produces decimals between 0 and 1.
+that produces numbers between 0 and 1.
 
     probability : Generator Float
     probability =
@@ -347,14 +356,12 @@ fastForward delta0 (Seed state0 incr) =
     Seed state1 incr
 
 
-{-| Create a generator that produces boolean values. The following example
-simulates a coin flip that may land heads or tails.
+{-| Create a generator that produces boolean values with equal probability. This
+example simulates flipping three coins and checking if they're all heads.
 
-    type Flip = Heads | Tails
-
-    coinFlip : Generator Flip
-    coinFlip =
-        map (\b -> if b then Heads else Tails) bool
+    threeHeads : Generator Bool
+    threeHeads =
+      map3 (\a b c -> a && b && c) bool bool bool
 -}
 bool : Generator Bool
 bool =
@@ -429,12 +436,10 @@ constant value =
   Generator (\seed -> (value, seed))
 
 
-{-| Transform the values produced by a generator. The following examples show
-how to generate booleans and letters based on a basic integer generator.
+{-| Transform the values produced by a generator using a stateless function as a
+callback.
 
-    bool : Generator Bool
-    bool =
-      map ((==) 1) (int 0 1)
+These examples show how to generate letters based on a basic integer generator.
 
     lowercaseLetter : Generator Char
     lowercaseLetter =
@@ -454,14 +459,16 @@ map func (Generator genA) =
       (func a, seed1)
 
 
-{-| Combine two generators.
+{-| Combine two generators. This is useful when you have a function with two
+arguments that both need to be given random inputs.
 
-This function is used to define things like [`pair`](#pair) where you want to
-put two generators together.
-
-    pair : Generator a -> Generator b -> Generator (a,b)
-    pair genA genB =
-      map2 (,) genA genB
+    pointInCircle : Float -> Generator (Float, Float)
+    pointInCircle radius =
+      let
+        r = float 0 radius
+        theta = map degrees (float 0 360)
+      in
+        map2 (curry fromPolar) r theta
 
 -}
 map2 : (a -> b -> c) -> Generator a -> Generator b -> Generator c
@@ -476,15 +483,13 @@ map2 func (Generator genA) (Generator genB) =
 
 {-| Combine three generators. This could be used to produce random colors.
 
-    import Color
-
     rgb : Generator Color.Color
     rgb =
       map3 Color.rgb (int 0 255) (int 0 255) (int 0 255)
 
     hsl : Generator Color.Color
     hsl =
-      map3 Color.hsl (map degrees (float 0 359.9999)) (float 0 1) (float 0 1)
+      map3 Color.hsl (map degrees (float 0 360)) (float 0 1) (float 0 1)
 -}
 map3 : (a -> b -> c -> d) -> Generator a -> Generator b -> Generator c -> Generator d
 map3 func (Generator genA) (Generator genB) (Generator genC) =
@@ -497,9 +502,8 @@ map3 func (Generator genA) (Generator genB) (Generator genC) =
       (func a b c, seed3)
 
 
-{-| Combine four generators.
-
-    import Color
+{-| Combine four generators. This could be used to produce random transparent
+colors.
 
     rgba : Generator Color.Color
     rgba =
@@ -533,11 +537,14 @@ map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (G
 
 {-| Map over any number of generators.
 
+    randomPerson : Generator Person
     randomPerson =
       person `map` genFirstName
-        `andMap` genLastName
-        `andMap` genBirthday
-        `andMap` genPhoneNumber
+          `andMap` genLastName
+          `andMap` genBirthday
+          `andMap` genPhoneNumber
+          `andMap` genAddress
+          `andMap` genEmail
 -}
 andMap : Generator (a -> b) -> Generator a -> Generator b
 andMap =
@@ -545,16 +552,28 @@ andMap =
 
 
 {-| Chain random operations by providing a callback that accepts a
-randomly-generated value. This all happens inside the generator, and the seed is
-managed for you.
+randomly-generated value. The random value can be used to drive more randomness.
 
-In the following example, we will generate a random letter by putting together
-uppercase and lowercase letters.
+The argument order matches `andThen`s from core, but requires the use of `flip`
+to match `map` or work with `|>` chains.
 
-    letter : Generator Char
-    letter =
-      bool `andThen` \b ->
-        if b then genUppercaseLetter else genLowercaseLetter
+This example shows how we can use `andThen` to generate a list of random values
+*and* random length. Then we use `map` to apply a stateless function to that
+list. Assume we already have `genName : Generator String` defined.
+
+    authors : Generator String
+    authors =
+      int 1 5 -- number of authors
+      |> (flip andThen) (\i -> list i genName)
+      |> map (\ns ->
+        case ns of
+          [n] ->
+            "Author: " ++ n
+          n::ns ->
+            "Authors: " ++ String.join ", " ns ++ " and " ++ n
+          [] ->
+            "This can't happen"
+        )
 
 If you find yourself calling `constant` in every branch of the callback, you can
 probably use `map` instead.
@@ -594,6 +613,19 @@ filter predicate generator =
     if predicate a
     then constant a
     else filter predicate generator)
+
+
+{-| Choose between two values with equal probability.
+
+    type Flip = Heads | Tails
+
+    coinFlip : Generator Flip
+    coinFlip =
+      choice Heads Tails
+-}
+choice : a -> a -> Generator a
+choice x y =
+  map (\b -> if b then x else y) bool
 
 
 ---------------------------------------------------------------
