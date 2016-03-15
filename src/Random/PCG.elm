@@ -5,7 +5,7 @@ module Random.PCG
   , map, map2, map3, map4, map5, andMap, filter, choice
   , constant, andThen
   , minInt, maxInt
-  , generate, initialSeed2, initialSeed, split, fastForward
+  , generate, initialSeed2, initialSeed, split, splitSeed, fastForward
   )
   where
 
@@ -37,7 +37,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
 
 # Working With Seeds
-@docs Seed, initialSeed, split, fastForward
+@docs Seed, initialSeed, split, splitSeed, fastForward
 
 # Constants
 @docs maxInt, minInt
@@ -265,22 +265,8 @@ float min max =
 numbers. This is useful when you have you need an unknown amount of randomness
 *later* but have to pass back a seed *now*.
 
-Let's say you have have many independent components which will each want to
-generate many random numbers. After splitting a seed, you can pass one of the
-new seeds to a component, and keep the other to repeat the process.
-
-    makeComponents : Seed -> List (Seed -> Component) -> (List Component, Seed)
-    makeComponents seed constructors =
-      case constructors of
-        [] ->
-          ([], seed)
-
-        c::cs ->
-          let
-            (seed1, seed2) = split seed
-            (tail, seed3) = makeComponents seed2 cs
-          in
-            (c seed1 :: tail, seed3)
+You should use `splitSeed` if it works for your use case. It works particularly
+well when definining generators of components.
 
 If you need a known number of seeds, you can obtain them like so:
 
@@ -314,7 +300,30 @@ split seed0 =
     dOdd = (d `Bitwise.or` 1) >>> 0
     seed2 = Seed (Int64 a b) (Int64 c dOdd)
   in
-    (next seed1, next seed2)
+    (next seed2, next seed1)
+
+
+{-| A generator that produces a seed that has been split from the threaded seed.
+You can map over this generator to produce a generator of components that keep
+their own seed. (The name of this function is a noun, not a verb.)
+
+Let's say you to write a component that uses some randomness to initialize
+itself and then never needs randomness again. You can easily write a `Generator
+Component` by mapping over the generators provided.
+
+But let's say the component needs randomness after initialization. The best
+way to do this by giving it an independent seed. If you use `split`, then you
+can no longer write a generator; you have to manage seeds yourself. But if you
+use this function, you can obtain a seed and place it in your component.
+
+    type alias Component = { seed : Seed }
+
+    myComponent : Generator Component
+    myComponent = map Component splitSeed
+-}
+splitSeed : Generator Seed
+splitSeed =
+  Generator split
 
 
 {-| Fast forward a seed the given number of steps, which may be negative (the
