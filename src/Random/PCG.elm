@@ -6,6 +6,7 @@ module Random.PCG
   , constant, andThen
   , minInt, maxInt
   , generate, initialSeed2, initialSeed, split, fastForward
+  , toJson, fromJson
   )
   where
 
@@ -37,7 +38,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
 
 # Working With Seeds
-@docs Seed, initialSeed, split, fastForward
+@docs Seed, initialSeed, split, fastForward, toJson, fromJson
 
 # Constants
 @docs maxInt, minInt
@@ -45,6 +46,8 @@ and is not cryptographically secure.
 
 
 import Bitwise
+import Json.Encode
+import Json.Decode
 
 (&) = Bitwise.and
 (<<) = Bitwise.shiftLeft
@@ -626,6 +629,37 @@ filter predicate generator =
 choice : a -> a -> Generator a
 choice x y =
   map (\b -> if b then x else y) bool
+
+
+{-| Serialize a seed as a JSON value to be sent out a port, stored in local
+storage, and so on. The seed can be recovered using `fromJson`.
+
+Do not inspect or change the resulting JSON value.
+-}
+toJson : Seed -> Json.Encode.Value
+toJson (Seed (Int64 a b) (Int64 c d)) =
+  Json.Encode.list <| List.map Json.Encode.int [a,b,c,d]
+
+
+{-| A JSON decoder that can recover seeds encoded using `toJson`.
+
+    Json.Decode.decodeValue fromJson (toJson mySeed) == Ok mySeed
+
+If the JSON is an array of one or two integers, or just an integer, these will
+be used to initialize a new seed. This can be useful when you sometimes have an
+old seed and sometimes need a new one. The integers should be 32 random bits.
+-}
+fromJson : Json.Decode.Decoder Seed
+fromJson =
+  Json.Decode.oneOf
+    [ Json.Decode.tuple4
+        (\a b c d -> Seed (Int64 a b) (Int64 c d))
+        Json.Decode.int Json.Decode.int Json.Decode.int Json.Decode.int
+    , Json.Decode.tuple2 initialSeed2 Json.Decode.int Json.Decode.int
+    , Json.Decode.tuple1 initialSeed Json.Decode.int
+    , Json.Decode.map initialSeed Json.Decode.int
+    ]
+
 
 
 ---------------------------------------------------------------
