@@ -41,7 +41,7 @@ and is not cryptographically secure.
 @docs Seed, initialSeed, independentSeed, fastForward, toJson, fromJson, split
 
 # Constants
-@docs maxInt, minInt
+@docs minInt, maxInt
 -}
 
 
@@ -317,7 +317,7 @@ independentSeed : Generator Seed
 independentSeed =
   Generator <| \seed0 ->
     let
-      gen1 = int minInt maxInt
+      gen1 = int 0 0xFFFFFFFF -- 2^32-1
       gen4 = map4 (,,,) gen1 gen1 gen1 gen1
       ((a,b,c,d), seed1) = generate gen4 seed0
       dOdd = (d `Bitwise.or` 1) >>> 0
@@ -380,15 +380,14 @@ bool =
 {-| The maximum value for randomly generated 32-bit ints. -}
 maxInt : Int
 maxInt =
-  0xFFFFFFFF -- 2^32 - 1
+  2147483647
 
 
 {-| The minimum value for randomly generated 32-bit ints. -}
 minInt : Int
 minInt =
-  0
+  -2147483648
 
--- DATA STRUCTURES
 
 {-| Create a pair of random values. A common use of this might be to generate
 a point in a certain 2D space. Imagine we have a collage that is 400 pixels
