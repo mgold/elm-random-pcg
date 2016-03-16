@@ -3,7 +3,7 @@
 set -e
 
 if [ ! -f elm-core-random.txt ]; then
-  sed -i.bak 's/import Random.PCG as Random/import Random/g' Dieharder.elm
+  sed -i.bak 's/import Random.Pcg as Random/import Random/g' Dieharder.elm
   sed -i.bak 's/elm-random-pcg/elm-core-random/g' Dieharder.elm
   elm make Dieharder.elm --output=raw_out.js
   sh elm-io.sh raw_out.js generate_files.js
@@ -12,7 +12,7 @@ if [ ! -f elm-core-random.txt ]; then
 fi
 
 if [ ! -f elm-random-pcg.txt ]; then
-  sed -i.bak 's/import Random/import Random.PCG as Random/g' Dieharder.elm
+  sed -i.bak 's/import Random/import Random.Pcg as Random/g' Dieharder.elm
   sed -i.bak 's/elm-core-random/elm-random-pcg/g' Dieharder.elm
   elm make Dieharder.elm --output=raw_out.js
   sh elm-io.sh raw_out.js generate_files.js

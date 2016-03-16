@@ -3,7 +3,7 @@ module Test where
 -}
 
 import Graphics.Element exposing (..)
-import Random.PCG as Random exposing (Generator, list, filter, int, minInt, maxInt, generate, initialSeed)
+import Random.Pcg as Random exposing (Generator, list, filter, int, minInt, maxInt, generate, initialSeed)
 
 
 gen : Generator (List Int)

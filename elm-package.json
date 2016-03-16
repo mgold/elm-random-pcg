@@ -7,8 +7,8 @@
         "src"
     ],
     "exposed-modules": [
-        "Random.PCG",
-        "Random.PCG.Interop"
+        "Random.Pcg",
+        "Random.Pcg.Interop"
     ],
     "dependencies": {
         "elm-lang/core": "3.0.0 <= v < 4.0.0"

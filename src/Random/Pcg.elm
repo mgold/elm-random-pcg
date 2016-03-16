@@ -1,4 +1,4 @@
-module Random.PCG
+module Random.Pcg
   ( Generator, Seed
   , bool, int, float, oneIn
   , pair, list, maybe, choice

@@ -1,6 +1,6 @@
-# Random.PCG for Elm
+# Random.Pcg for Elm
 
-An alternate random number generator. You can `import Random.PCG as Random` and everything will continue to
+An alternate random number generator. You can `import Random.Pcg as Random` and everything will continue to
 work (except [elm-random-extra](http://package.elm-lang.org/packages/NoRedInk/elm-random-extra/latest/Random-Extra)).
 This library offers two main improvements over core, without a large loss of performance (see `test/benchmark`):
 
@@ -20,3 +20,8 @@ port](https://github.com/thomcc/pcg-random) by Thom Chiovoloni (MIT license). Th
 secure**.
 
 Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).
+
+## Upgrading from 1.x
+* Module renamed `Random.Pcg` from `Random.PCG`.
+* `split` has been removed; use `independentSeed`.
+* `minInt` and `maxInt` values changed to match core.

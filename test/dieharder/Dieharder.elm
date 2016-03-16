@@ -1,6 +1,6 @@
 import String
 import Task exposing (Task)
-import Random.PCG as Random
+import Random.Pcg as Random
 
 import Console exposing (IO)
 
