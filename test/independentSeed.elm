@@ -13,7 +13,7 @@ gen = Random.list 50 (Random.int 1 6)
 seeds : List Random.Seed
 seeds =
   let
-    gen = Random.list 32 Random.splitSeed
+    gen = Random.list 32 Random.independentSeed
     seed = Random.initialSeed 43
   in
     Random.generate gen seed |> fst
@@ -42,5 +42,5 @@ display ints =
 
 main =
   flow down <|
-    leftAligned (Text.fromString "Each list is generated from a seed split from the one before it. No obvious relationships are present in these simulated dice rolls.")
+    leftAligned (Text.fromString "Each list is generated from a seed split from and independent of the one before it. No obvious relationships are present in these simulated dice rolls.")
     :: List.map display xss
