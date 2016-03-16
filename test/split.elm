@@ -13,11 +13,10 @@ gen = Random.list 50 (Random.int 1 6)
 seeds : List Random.Seed
 seeds =
   let
-    f n seed =
-      if n <= 0 then []
-      else let (seed1, seed2) = Random.split seed
-           in seed1 :: f (n-1) seed2
-  in f 32 (Random.initialSeed 43)
+    gen = Random.list 32 Random.splitSeed
+    seed = Random.initialSeed 43
+  in
+    Random.generate gen seed |> fst
 
 
 xss : List (List Int)
@@ -35,14 +34,6 @@ display ints =
         4 -> Color.lightCharcoal
         5 -> Color.charcoal
         6 -> Color.darkCharcoal
-        {-
-        1 -> Color.red
-        2 -> Color.orange
-        3 -> Color.yellow
-        4 -> Color.green
-        5 -> Color.blue
-        6 -> Color.purple
-        -}
         _ -> Color.black
     style i = Text.fromString (toString i) |> Text.color (color i)
   in

@@ -5,7 +5,7 @@ module Random.PCG
   , map, map2, map3, map4, map5, andMap, filter, choice
   , constant, andThen
   , minInt, maxInt
-  , generate, initialSeed2, initialSeed, split, fastForward
+  , generate, initialSeed2, initialSeed, split, independentSeed, fastForward
   )
   where
 
@@ -18,8 +18,8 @@ You run a `Generator` by calling the [`generate`](#generate) function, which
 also takes a random [`Seed`](#Seed), and passes back a new seed. You should
 never use the same seed twice because you will get the same result! If you need
 random values over time, you should store the most recent seed in your model. If
-you have several independent models, you can [`split`](#split) seeds into more
-seeds.
+you have many separate models, you can give them all [independent
+seeds](#independentSeed).
 
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
@@ -37,7 +37,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
 
 # Working With Seeds
-@docs Seed, initialSeed, split, fastForward
+@docs Seed, initialSeed, independentSeed, fastForward, split
 
 # Constants
 @docs maxInt, minInt
@@ -50,6 +50,7 @@ import Bitwise
 (<<) = Bitwise.shiftLeft
 (>>>) = Bitwise.shiftRightLogical
 
+-- private type used to represent 64-bit integers.
 type Int64 = Int64 Int Int
 
 {-| A `Generator` is like a recipe for generating certain random values. So a
@@ -155,6 +156,7 @@ initialSeed : Int -> Seed
 initialSeed = initialSeed2 0
 
 
+magicFactor : Int64
 magicFactor = Int64 0x5851f42d 0x4c957f2d
 
 -- derive the next seed by cranking the LCG
@@ -190,8 +192,8 @@ peel (Seed (Int64 oldHi oldLo) _) =
 integer : Int -> Seed -> (Int, Seed)
 integer max seed0 =
   -- fast path for power of 2
-  if ((max & (max - 1)) == 0)
-  then (peel seed0 & (max - 1) >>> 0, next seed0)
+  if ((max & (max - 1)) == 0) then
+    (peel seed0 & (max - 1) >>> 0, next seed0)
   else
     let
       threshhold = ((-max >>> 0) % max) >>> 0 -- essentially: period % max
@@ -262,65 +264,62 @@ float min max =
 
 
 {-| Split a seed into two new seeds. Each seed will generate different random
-numbers. This is useful when you have you need an unknown amount of randomness
-*later* but have to pass back a seed *now*.
+numbers.
 
-Let's say you have have many independent components which will each want to
-generate many random numbers. After splitting a seed, you can pass one of the
-new seeds to a component, and keep the other to repeat the process.
-
-    makeComponents : Seed -> List (Seed -> Component) -> (List Component, Seed)
-    makeComponents seed constructors =
-      case constructors of
-        [] ->
-          ([], seed)
-
-        c::cs ->
-          let
-            (seed1, seed2) = split seed
-            (tail, seed3) = makeComponents seed2 cs
-          in
-            (c seed1 :: tail, seed3)
-
-If you need a known number of seeds, you can obtain them like so:
-
-    generateNSeeds : Int -> Seed -> List Seed
-    generateNSeeds n seed =
-      let
-        helper seeds =
-          if List.length seeds >= n then
-            List.take n seeds
-          else
-            List.concatMap
-              (\seed -> let (a,b) = split seed in [a,b])
-              seeds
-            |> helper
-      in
-        helper [seed]
+**This function is deprecated** in favor of `independentSeed`. If you absolutely
+need two seeds, use `generate independentSeed` instead.
 
 Splitting is a reproducible operation; just like generating numbers, it
 will be the same every time. Similarly, once you split a seed, you must not
 reuse it.
-
-Split seeds are extremely likely to be distinct for all practical purposes.
-However, it is not proven that there are no pathological cases.
 -}
 split : Seed -> (Seed, Seed)
-split seed0 =
-  let
-    gen1 = int minInt maxInt
-    gen4 = map4 (,,,) gen1 gen1 gen1 gen1
-    ((a,b,c,d), seed1) = generate gen4 seed0
-    dOdd = (d `Bitwise.or` 1) >>> 0
-    seed2 = Seed (Int64 a b) (Int64 c dOdd)
-  in
-    (next seed1, next seed2)
+split =
+  generate independentSeed
+
+
+{-| A generator that produces a seed that is independent of any other seed in
+the program. These seeds will generate their own unqiue sequences of random
+values. They are useful when you need an unknown amount of randomness *later*
+but can only request a fixed amount of randomness *now*.
+
+Let's say you write a component that uses some randomness to initialize itself
+and then never needs randomness again. You can easily write a `Generator
+Component` by mapping over the generators it needs. But if component requires
+randomness after initialization, it should keep its own independent seed.
+
+    type alias Component = { seed : Seed }
+
+    genComponent : Generator Component
+    genComponent = map Component independentSeed
+
+If you have a lot of components, you can initialize them like so:
+
+    genComponents : List (Seed -> a) -> Generator (List a)
+    genComponents constructors =
+      list (List.length constructors) independentSeed
+          |> map (List.map2 (<|) constructors)
+
+The independent seeds are extremely likely to be distinct for all practical
+purposes. However, it is not proven that there are no pathological cases.
+-}
+independentSeed : Generator Seed
+independentSeed =
+  Generator <| \seed0 ->
+    let
+      gen1 = int minInt maxInt
+      gen4 = map4 (,,,) gen1 gen1 gen1 gen1
+      ((a,b,c,d), seed1) = generate gen4 seed0
+      dOdd = (d `Bitwise.or` 1) >>> 0
+      seed2 = Seed (Int64 a b) (Int64 c dOdd)
+    in
+      (next seed2, next seed1)
 
 
 {-| Fast forward a seed the given number of steps, which may be negative (the
 seed will be "rewound"). This allows a single seed to serve as a random-access
-lookup table of random numbers. (To be sure no one else uses the seed,
-[`split`](#split) off your own).
+lookup table of random numbers. (To be sure no one else uses the seed, use
+`generate independentSeed` to split off your own.)
 
     diceRollTable : Int -> Int
     diceRollTable i =
