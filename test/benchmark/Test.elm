@@ -60,7 +60,7 @@ mySuite =
     , Benchmark.bench2 "PCG:  generate a float 0-4096" PCG.generate (PCG.float 0 4096) pcgSeed
     , Benchmark.bench2 "Core: generate a massive float" Ran.generate (Ran.float 0 4294967295) coreSeed
     , Benchmark.bench2 "PCG:  generate a massive float" PCG.generate (PCG.float 0 4294967295) pcgSeed
-    , Benchmark.bench1 "PCG:  split a seed" PCG.split pcgSeed
+    , Benchmark.bench2 "PCG:  generate an independent (split) seed" PCG.generate (PCG.independentSeed) pcgSeed
     , Benchmark.bench2 "PCG:  fast forward a seed 1 time" PCG.fastForward 1 pcgSeed
     , Benchmark.bench2 "PCG:  fast forward a seed 10 times" PCG.fastForward 10 pcgSeed
     , Benchmark.bench2 "PCG:  fast forward a seed 100 times" PCG.fastForward 100 pcgSeed

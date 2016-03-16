@@ -5,7 +5,7 @@ module Random.PCG
   , map, map2, map3, map4, map5, andMap, filter
   , constant, andThen
   , minInt, maxInt
-  , generate, initialSeed2, initialSeed, split, independentSeed, fastForward
+  , generate, initialSeed2, initialSeed, independentSeed, fastForward
   , toJson, fromJson
   )
   where
@@ -38,7 +38,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, initialSeed, independentSeed, fastForward, toJson, fromJson, split
+@docs Seed, initialSeed, independentSeed, fastForward, toJson, fromJson
 
 # Constants
 @docs minInt, maxInt
@@ -270,21 +270,6 @@ float min max =
       scaled = val * range + min
     in
       (scaled, next seed1)
-
-
-{-| Split a seed into two new seeds. Each seed will generate different random
-numbers.
-
-**This function is deprecated** in favor of `independentSeed`. If you absolutely
-need two seeds, use `generate independentSeed` instead.
-
-Splitting is a reproducible operation; just like generating numbers, it
-will be the same every time. Similarly, once you split a seed, you must not
-reuse it.
--}
-split : Seed -> (Seed, Seed)
-split =
-  generate independentSeed
 
 
 {-| A generator that produces a seed that is independent of any other seed in
