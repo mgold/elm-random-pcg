@@ -637,8 +637,9 @@ choice x y =
   map (\b -> if b then x else y) bool
 
 
-{-| Serialize a seed as a JSON value to be sent out a port, stored in local
-storage, and so on. The seed can be recovered using `fromJson`.
+{-| Serialize a seed as a [JSON value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
+to be sent out a port, stored in local storage, and so on. The seed can be
+recovered using `fromJson`.
 
 Do not inspect or change the resulting JSON value.
 -}
