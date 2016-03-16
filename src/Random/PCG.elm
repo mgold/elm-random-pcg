@@ -31,10 +31,10 @@ and is not cryptographically secure.
 @docs Generator, bool, int, float
 
 # Data Structure Generators
-@docs pair, list
+@docs pair, list, choice
 
 # Custom Generators
-@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter, choice
+@docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
 @docs Seed, initialSeed, independentSeed, fastForward, split
@@ -86,6 +86,12 @@ As you can see, threading seeds through many calls to `generate` is tedious and
 error-prone. That's why this library includes many functions to build more
 complicated generators, allowing you to call `generate` only a small number of
 times.
+
+Our example is best written as:
+
+    (xs, newSeed) = generate (list 3 <| int 0 100) seed0
+    xs -- [85, 0, 38]
+
 -}
 generate : Generator a -> Seed -> (a, Seed)
 generate (Generator generator) seed =
@@ -286,7 +292,8 @@ but can only request a fixed amount of randomness *now*.
 Let's say you write a component that uses some randomness to initialize itself
 and then never needs randomness again. You can easily write a `Generator
 Component` by mapping over the generators it needs. But if component requires
-randomness after initialization, it should keep its own independent seed.
+randomness after initialization, it should keep its own independent seed, which
+it can get by mapping over *this* generator.
 
     type alias Component = { seed : Seed }
 
