@@ -6,6 +6,7 @@ module Random.PCG
   , constant, andThen
   , minInt, maxInt
   , generate, initialSeed2, initialSeed, split, independentSeed, fastForward
+  , toJson, fromJson
   )
   where
 
@@ -37,7 +38,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, initialSeed, independentSeed, fastForward, split
+@docs Seed, initialSeed, independentSeed, fastForward, split, toJson, fromJson
 
 # Constants
 @docs maxInt, minInt
@@ -45,6 +46,8 @@ and is not cryptographically secure.
 
 
 import Bitwise
+import Json.Encode
+import Json.Decode
 
 (&) = Bitwise.and
 (<<) = Bitwise.shiftLeft
@@ -634,9 +637,40 @@ choice x y =
   map (\b -> if b then x else y) bool
 
 
+{-| Serialize a seed as a JSON value to be sent out a port, stored in local
+storage, and so on. The seed can be recovered using `fromJson`.
+
+Do not inspect or change the resulting JSON value.
+-}
+toJson : Seed -> Json.Encode.Value
+toJson (Seed (Int64 a b) (Int64 c d)) =
+  Json.Encode.list <| List.map Json.Encode.int [a,b,c,d]
+
+
+{-| A JSON decoder that can recover seeds encoded using `toJson`.
+
+    Json.Decode.decodeValue fromJson (toJson mySeed) == Ok mySeed
+
+If the JSON is an array of one or two integers, or just an integer, these will
+be used to initialize a new seed. This can be useful when you sometimes have an
+old seed and sometimes need a new one. The integers should be 32 random bits.
+-}
+fromJson : Json.Decode.Decoder Seed
+fromJson =
+  Json.Decode.oneOf
+    [ Json.Decode.tuple4
+        (\a b c d -> Seed (Int64 a b) (Int64 c d))
+        Json.Decode.int Json.Decode.int Json.Decode.int Json.Decode.int
+    , Json.Decode.tuple2 initialSeed2 Json.Decode.int Json.Decode.int
+    , Json.Decode.tuple1 initialSeed Json.Decode.int
+    , Json.Decode.map initialSeed Json.Decode.int
+    ]
+
+
 ---------------------------------------------------------------
 -- Arithmetic helpers, because JS does not have 64-bit integers
 ---------------------------------------------------------------
+
 
 mul32 : Int -> Int -> Int
 mul32 a b =
@@ -647,6 +681,7 @@ mul32 a b =
     bl = b & 0xffff
   in
     (al * bl) + (((ah * bl + al * bh) << 16) >>> 0) |> Bitwise.or 0
+
 
 mul64 : Int64 -> Int64 -> Int64
 mul64 (Int64 aHi aLo) (Int64 bHi bLo) =
