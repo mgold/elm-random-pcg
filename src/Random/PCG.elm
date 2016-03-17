@@ -1,8 +1,8 @@
 module Random.PCG
   ( Generator, Seed
-  , bool, int, float
-  , list, pair
-  , map, map2, map3, map4, map5, andMap, filter, choice
+  , bool, int, float, oneIn
+  , pair, list, maybe, choice
+  , map, map2, map3, map4, map5, andMap, filter
   , constant, andThen
   , minInt, maxInt
   , generate, initialSeed2, initialSeed, split, independentSeed, fastForward
@@ -29,10 +29,10 @@ and is not cryptographically secure.
 @docs initialSeed2, generate
 
 # Basic Generators
-@docs Generator, bool, int, float
+@docs Generator, bool, int, float, oneIn
 
-# Data Structure Generators
-@docs pair, list, choice
+# Combining Generators
+@docs pair, list, maybe, choice
 
 # Custom Generators
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
@@ -623,6 +623,17 @@ filter predicate generator =
     then constant a
     else filter predicate generator)
 
+{-| Produce `True` one-in-n times on average.
+
+Do not pass a value less then one to this function.
+
+    flippedHeads = oneIn 2
+    rolled6 = oneIn 6
+-}
+oneIn : Int -> Generator Bool
+oneIn n =
+  map ((==) 1) (int 1 n)
+
 
 {-| Choose between two values with equal probability.
 
@@ -635,6 +646,20 @@ filter predicate generator =
 choice : a -> a -> Generator a
 choice x y =
   map (\b -> if b then x else y) bool
+
+
+{-| Produce `Just` a value on `True`, and `Nothing` on `False`.
+
+You can use `bool` or `oneIn n` for the first argument.
+-}
+maybe : Generator Bool -> Generator a -> Generator (Maybe a)
+maybe genBool genA =
+  genBool `andThen`
+    \b ->
+      if b then
+        map Just genA
+      else
+        constant Nothing
 
 
 {-| Serialize a seed as a [JSON value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
