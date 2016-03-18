@@ -18,3 +18,5 @@ finite amount of random values into a large data structure.
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil, based on the [JS
 port](https://github.com/thomcc/pcg-random) by Thom Chiovoloni (MIT license). The generator is **not cryptographically
 secure**.
+
+Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).

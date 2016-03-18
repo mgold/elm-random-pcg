@@ -38,7 +38,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, initialSeed, independentSeed, fastForward, split, toJson, fromJson
+@docs Seed, initialSeed, independentSeed, fastForward, toJson, fromJson, split
 
 # Constants
 @docs maxInt, minInt
@@ -290,7 +290,7 @@ split =
 {-| A generator that produces a seed that is independent of any other seed in
 the program. These seeds will generate their own unqiue sequences of random
 values. They are useful when you need an unknown amount of randomness *later*
-but can only request a fixed amount of randomness *now*.
+but can request only a fixed amount of randomness *now*.
 
 Let's say you write a component that uses some randomness to initialize itself
 and then never needs randomness again. You can easily write a `Generator
