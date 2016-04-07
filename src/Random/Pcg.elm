@@ -152,14 +152,11 @@ you use a seed, you'll get another one back.
 initialSeed2 : Int -> Int -> Seed
 initialSeed2 stateHi stateLo =
   let
-    zero =
-      Int64 0 0
-
     incr =
       Int64 0x14057B7E 0xF767814F
 
     seed0 =
-      Seed zero incr
+      Seed (Int64 0 0) incr
 
     (Seed state1 _) =
       next seed0
