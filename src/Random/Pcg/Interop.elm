@@ -1,4 +1,4 @@
-module Random.Pcg.Interop where
+module Random.Pcg.Interop (fission) where
 
 {-| Provides a function to create a PCG seed from a seed in the core library.
 This is useful for library writers who need a splittable or most robust PRNG but
@@ -16,6 +16,7 @@ import Random.Pcg.Interop as Random.Pcg
 import Random
 import Random.Pcg
 
+
 {-| Use the core library's random seed to produce a PCG random seed.
 
 It seems that the package website doesn't show modules in type annotations, so here it is in full:
@@ -23,12 +24,19 @@ It seems that the package website doesn't show modules in type annotations, so h
     fission : Random.Seed -> (Random.Pcg.Seed, Random.Seed)
 
 -}
-fission : Random.Seed -> (Random.Pcg.Seed, Random.Seed)
+fission : Random.Seed -> ( Random.Pcg.Seed, Random.Seed )
 fission stdSeed0 =
   let
-    gen = Random.int 0 0xFFFFFFFF
-    (a, stdSeed1) = Random.generate gen stdSeed0
-    (b, stdSeed2) = Random.generate gen stdSeed1
-    pcgSeed1 = Random.Pcg.initialSeed2 a b
+    gen =
+      Random.int 0 0xFFFFFFFF
+
+    ( a, stdSeed1 ) =
+      Random.generate gen stdSeed0
+
+    ( b, stdSeed2 ) =
+      Random.generate gen stdSeed1
+
+    pcgSeed1 =
+      Random.Pcg.initialSeed2 a b
   in
-    (pcgSeed1, stdSeed2)
+    ( pcgSeed1, stdSeed2 )
