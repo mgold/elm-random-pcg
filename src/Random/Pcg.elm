@@ -301,7 +301,7 @@ that produces numbers between 0 and 1.
 
     probability : Generator Float
     probability =
-        float 0 1
+      float 0 1
 -}
 float : Float -> Float -> Generator Float
 float min max =
