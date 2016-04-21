@@ -4,7 +4,7 @@ module Test (..) where
 -}
 
 import Graphics.Element exposing (..)
-import Random.PCG as Random exposing (Generator, list, oneIn, generate, initialSeed2)
+import Random.Pcg as Random exposing (Generator, list, oneIn, generate, initialSeed2)
 
 
 n =

@@ -1,4 +1,4 @@
-module Random.Pcg (Generator, Seed, bool, int, float, oneIn, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson) where
+module Random.Pcg (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson) where
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -19,7 +19,7 @@ and is not cryptographically secure.
 @docs initialSeed2, generate
 
 # Basic Generators
-@docs Generator, bool, int, float, oneIn
+@docs Generator, bool, int, float, oneIn, sample
 
 # Combining Generators
 @docs pair, list, maybe, choice
@@ -756,6 +756,34 @@ Do not pass a value less then one to this function.
 oneIn : Int -> Generator Bool
 oneIn n =
   map ((==) 1) (int 1 n)
+
+
+{-| Given a list, choose an element uniformly at random. `Nothing` is only
+produced if the list is empty.
+
+    type Direction = North | South | East | West
+
+    direction : Generator Direction
+    direction =
+      sample [North, South, East, West]
+        |> map (Maybe.withDefault North)
+
+-}
+sample : List a -> Generator (Maybe a)
+sample =
+  let
+    find k ys =
+      case ys of
+        [] ->
+          Nothing
+
+        z :: zs ->
+          if k == 0 then
+            Just z
+          else
+            find (k - 1) zs
+  in
+    \xs -> map (\i -> find i xs) (int 0 (List.length xs - 1))
 
 
 {-| Choose between two values with equal probability.
