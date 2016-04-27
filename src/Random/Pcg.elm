@@ -1,11 +1,11 @@
-module Random.Pcg (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson) where
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
 [`bool`](#bool) and [`int`](#int) that you can build up into fancier generators
 with functions like [`list`](#list) and [`map`](#map).
 
-You run a `Generator` by calling the [`generate`](#generate) function, which
+You run a `Generator` by calling the [`step`](#step) function, which
 also takes a random [`Seed`](#Seed), and passes back a new seed. You should
 never use the same seed twice because you will get the same result! If you need
 random values over time, you should store the most recent seed in your model. If
@@ -16,7 +16,7 @@ This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
 
 # Getting Started
-@docs initialSeed2, generate
+@docs initialSeed2, step
 
 # Basic Generators
 @docs Generator, bool, int, float, oneIn, sample
@@ -73,32 +73,32 @@ with the `int 0 100` generator. Each time we call `generate` we need to provide
 a seed. This will produce a random number and a *new* seed to use if we want to
 run other generators later.
 
-    (x, seed1) = generate (int 0 100) seed0
-    (y, seed2) = generate (int 0 100) seed1
-    (z, seed3) = generate (int 0 100) seed2
+    (x, seed1) = step (int 0 100) seed0
+    (y, seed2) = step (int 0 100) seed1
+    (z, seed3) = step (int 0 100) seed2
     [x, y, z] -- [85, 0, 38]
 
 Notice that we use different seeds on each line. This is important! If you reuse
 the same seed, you get the same results.
 
-    (x, _) = generate (int 0 100) seed0
-    (y, _) = generate (int 0 100) seed0
-    (z, _) = generate (int 0 100) seed0
+    (x, _) = step (int 0 100) seed0
+    (y, _) = step (int 0 100) seed0
+    (z, _) = step (int 0 100) seed0
     [x,y,z] -- [85, 85, 85]
 
-As you can see, threading seeds through many calls to `generate` is tedious and
+As you can see, threading seeds through many calls to `step` is tedious and
 error-prone. That's why this library includes many functions to build more
-complicated generators, allowing you to call `generate` only a small number of
+complicated generators, allowing you to call `step` only a small number of
 times.
 
 Our example is best written as:
 
-    (xs, newSeed) = generate (list 3 <| int 0 100) seed0
+    (xs, newSeed) = step (list 3 <| int 0 100) seed0
     xs -- [85, 0, 38]
 
 -}
-generate : Generator a -> Seed -> ( a, Seed )
-generate (Generator generator) seed =
+step : Generator a -> Seed -> ( a, Seed )
+step (Generator generator) seed =
   generator seed
 
 
@@ -377,7 +377,7 @@ independentSeed =
             map4 (,,,) gen1 gen1 gen1 gen1
 
           ( ( a, b, c, d ), seed1 ) =
-            generate gen4 seed0
+            step gen4 seed0
 
           dOdd =
             (d `Bitwise.or` 1) >>> 0
@@ -391,11 +391,11 @@ independentSeed =
 {-| Fast forward a seed the given number of steps, which may be negative (the
 seed will be "rewound"). This allows a single seed to serve as a random-access
 lookup table of random numbers. (To be sure no one else uses the seed, use
-`generate independentSeed` to split off your own.)
+`step independentSeed` to split off your own.)
 
     diceRollTable : Int -> Int
     diceRollTable i =
-      fastForward i mySeed |> generate (int 1 6) |> fst
+      fastForward i mySeed |> step (int 1 6) |> fst
 -}
 fastForward : Int -> Seed -> Seed
 fastForward delta0 (Seed state0 incr) =

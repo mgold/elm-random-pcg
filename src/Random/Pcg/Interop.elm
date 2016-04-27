@@ -1,4 +1,4 @@
-module Random.Pcg.Interop (fission) where
+module Random.Pcg.Interop exposing (fission)
 
 {-| Provides a function to create a PCG seed from a seed in the core library.
 This is useful for library writers who need a splittable or most robust PRNG but
@@ -31,10 +31,10 @@ fission stdSeed0 =
       Random.int 0 0xFFFFFFFF
 
     ( a, stdSeed1 ) =
-      Random.generate gen stdSeed0
+      Random.step gen stdSeed0
 
     ( b, stdSeed2 ) =
-      Random.generate gen stdSeed1
+      Random.step gen stdSeed1
 
     pcgSeed1 =
       Random.Pcg.initialSeed2 a b

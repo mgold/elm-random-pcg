@@ -24,6 +24,7 @@ secure**.
 Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).
 
 ## Upgrading from 1.x
+* Upgraded for 0.17 to match core 4.0.0 API.
 * Module renamed `Random.Pcg` from `Random.PCG`.
 * `split` has been removed; use `independentSeed`.
 * `minInt` and `maxInt` values changed to match core.
