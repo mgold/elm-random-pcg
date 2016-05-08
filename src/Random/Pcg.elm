@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
+effect module Random.Pcg where { command = MyCmd } exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -10,13 +10,14 @@ also takes a random [`Seed`](#Seed), and passes back a new seed. You should
 never use the same seed twice because you will get the same result! If you need
 random values over time, you should store the most recent seed in your model. If
 you have many separate models, you can give them all [independent
-seeds](#independentSeed).
+seeds](#independentSeed). Alternatively, use [`generate`](#generate) to use
+randomness with Cmds.
 
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
 
 # Getting Started
-@docs initialSeed2, step
+@docs initialSeed2, step, generate
 
 # Basic Generators
 @docs Generator, bool, int, float, oneIn, sample
@@ -37,6 +38,8 @@ and is not cryptographically secure.
 import Bitwise
 import Json.Encode
 import Json.Decode
+import Task exposing (Task)
+import Time
 
 
 (&) =
@@ -102,13 +105,33 @@ step (Generator generator) seed =
   generator seed
 
 
+{-| Generate a random value as specified by a given `Generator`, by creating a
+command that will return it in a message.
+
+    type Msg = NewList (List Int)
+
+    myCommand : Cmd Msg
+    myCommand = generate NewList (list 3 <| int 0 100)
+
+Commands are used by [The Elm Architecture][arch], and you can [read more about random values][rand]. If you use
+`generate` instead of `step`, you don't have to worry about seeds, but you can't generate values synchronously and
+values can't be reproduced.
+
+[arch]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/index.html
+[rand]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/effects/random.html
+-}
+generate : (a -> msg) -> Generator a -> Cmd msg
+generate tagger generator =
+  command (Generate (map tagger generator))
+
 {-| A `Seed` is the source of randomness in the whole system. It hides the
 current state of the random number generator.
 
 Generators, not seeds, are the primary data structure for generating random
 values. Generators are much easier to chain and combine than functions that take
 and return seeds. Creating and managing seeds should happen "high up" in your
-program.
+program. The ultimate version of this is using `generate` and letting Elm's runtime
+effects manager handle seeds.
 -}
 type Seed
   = -- state and increment
@@ -943,3 +966,43 @@ add64 (Int64 aHi aLo) (Int64 bHi bLo) =
         hi
   in
     Int64 hi' lo
+
+-------------------------------------------
+-- Effects module magic copied from core --
+-------------------------------------------
+
+
+type MyCmd msg = Generate (Generator msg)
+
+
+cmdMap : (a -> b) -> MyCmd a -> MyCmd b
+cmdMap func (Generate generator) =
+  Generate (map func generator)
+
+
+init : Task Never Seed
+init =
+  Time.now `Task.andThen` \t ->
+    Task.succeed (initialSeed (round t))
+
+
+onEffects : Platform.Router msg Never -> List (MyCmd msg) -> Seed -> Task Never Seed
+onEffects router commands seed =
+  case commands of
+    [] ->
+      Task.succeed seed
+
+    Generate generator :: rest ->
+      let
+        (value, newSeed) =
+          step generator seed
+      in
+        Platform.sendToApp router value
+          `Task.andThen` \_ ->
+
+        onEffects router rest newSeed
+
+
+onSelfMsg : Platform.Router msg Never -> Never -> Seed -> Task Never Seed
+onSelfMsg _ _ seed =
+  Task.succeed seed
