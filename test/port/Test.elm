@@ -1,7 +1,7 @@
 module Test where
 
 import Graphics.Element exposing (show)
-import Random.PCG as Random
+import Random.Pcg as Random
 
 port randomSeed : (Int, Int)
 

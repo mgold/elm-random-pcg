@@ -5,7 +5,7 @@ back the original seed.
 -}
 
 import Graphics.Element exposing (..)
-import Random.PCG as Random
+import Random.Pcg as Random
 
 n = 57
 

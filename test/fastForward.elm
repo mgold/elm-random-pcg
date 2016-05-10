@@ -7,7 +7,7 @@ this has no effect on the psuedo-random output.
 -}
 
 import Graphics.Element exposing (show)
-import Random.PCG as Random
+import Random.Pcg as Random
 
 n = 100000
 

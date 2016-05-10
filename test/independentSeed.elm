@@ -3,7 +3,7 @@ module Test where
 import Graphics.Element exposing (..)
 import Text
 import Color
-import Random.PCG as Random
+import Random.Pcg as Random
 
 
 gen : Random.Generator (List Int)
