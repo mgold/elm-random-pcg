@@ -1,4 +1,4 @@
-effect module Random.Pcg where { command = MyCmd } exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -40,6 +40,7 @@ import Json.Encode
 import Json.Decode
 import Task exposing (Task)
 import Time
+import Random as CoreRandom
 
 
 (&) =
@@ -115,14 +116,26 @@ command that will return it in a message.
 
 Commands are used by [The Elm Architecture][arch], and you can [read more about random values][rand]. If you use
 `generate` instead of `step`, you don't have to worry about seeds, but you can't generate values synchronously and
-values can't be reproduced.
+values can't be reproduced. Furthermore, because of Elm's restrictions on effect managers the statistical properties may
+be weaker using `generate` many times compared to `step` and explicitly managed seeds.
 
 [arch]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/index.html
 [rand]: https://evancz.gitbooks.io/an-introduction-to-elm/content/architecture/effects/random.html
 -}
 generate : (a -> msg) -> Generator a -> Cmd msg
 generate tagger generator =
-  command (Generate (map tagger generator))
+  let
+    int32 =
+      CoreRandom.int 0 0xFFFFFFFF
+
+    int64 =
+      CoreRandom.pair int32 int32
+
+    coreToPcg ( seedA, seedB ) =
+      step generator (initialSeed2 seedA seedB) |> fst |> tagger
+  in
+    CoreRandom.generate coreToPcg int64
+
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
 current state of the random number generator.
@@ -966,43 +979,3 @@ add64 (Int64 aHi aLo) (Int64 bHi bLo) =
         hi
   in
     Int64 hi' lo
-
--------------------------------------------
--- Effects module magic copied from core --
--------------------------------------------
-
-
-type MyCmd msg = Generate (Generator msg)
-
-
-cmdMap : (a -> b) -> MyCmd a -> MyCmd b
-cmdMap func (Generate generator) =
-  Generate (map func generator)
-
-
-init : Task Never Seed
-init =
-  Time.now `Task.andThen` \t ->
-    Task.succeed (initialSeed (round t))
-
-
-onEffects : Platform.Router msg Never -> List (MyCmd msg) -> Seed -> Task Never Seed
-onEffects router commands seed =
-  case commands of
-    [] ->
-      Task.succeed seed
-
-    Generate generator :: rest ->
-      let
-        (value, newSeed) =
-          step generator seed
-      in
-        Platform.sendToApp router value
-          `Task.andThen` \_ ->
-
-        onEffects router rest newSeed
-
-
-onSelfMsg : Platform.Router msg Never -> Never -> Seed -> Task Never Seed
-onSelfMsg _ _ seed =
-  Task.succeed seed
