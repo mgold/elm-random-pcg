@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -22,7 +22,7 @@ and is not cryptographically secure.
 @docs Generator, bool, int, float, oneIn, sample
 
 # Combining Generators
-@docs pair, list, maybe, choice
+@docs pair, list, maybe, choice, choices, frequency
 
 # Custom Generators
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
@@ -725,7 +725,7 @@ andThen (Generator generateA) callback =
     evens =
       filter (\i -> i % 2 == 0) (int minInt maxInt)
 
-If the predicate is unsatisfiable, the generator will not terminate, your
+**Warning:** If the predicate is unsatisfiable, the generator will not terminate, your
 application will crash with a stack overflow, and you will be sad. You should
 also avoid predicates that are merely very difficult to satisfy.
 
@@ -804,6 +804,44 @@ choice x y =
         y
     )
     bool
+
+
+{-| Create a generator that chooses a generator from a list of generators
+with equal probability.
+
+**Warning:** Do not pass an empty list or your program will crash! In practice
+this is usually not a problem since you pass a list literal.
+-}
+choices : List (Generator a) -> Generator a
+choices gens =
+    frequency <| List.map (\g -> ( 1, g )) gens
+
+
+{-| Create a generator that chooses a generator from a list of generators
+based on the provided weight. The likelihood of a given generator being
+chosen is its weight divided by the total weight (which doesn't have to equal 1).
+
+**Warning:** Do not pass an empty list or your program will crash! In practice
+this is usually not a problem since you pass a list literal.
+-}
+frequency : List ( Float, Generator a ) -> Generator a
+frequency pairs =
+    let
+        total =
+            List.sum <| List.map (fst >> abs) pairs
+
+        pick choices n =
+            case choices of
+                ( k, g ) :: rest ->
+                    if n <= k then
+                        g
+                    else
+                        pick rest (n - k)
+
+                _ ->
+                    Debug.crash "Empty list passed to Random.Pcg.frequency!"
+    in
+        float 0 total `andThen` pick pairs
 
 
 {-| Produce `Just` a value on `True`, and `Nothing` on `False`.
