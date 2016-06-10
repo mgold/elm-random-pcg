@@ -117,7 +117,8 @@ type Seed
 
 {-| Take two integers to fully initialize the 64-bit state of the random
 number generator. Only the least significant 32 bits of each integer matter, and
-those bits should be as random as possible.
+those bits should be as random as possible. The first argument is the high bits,
+but if you're pulling from a random data source, it shouldn't matter.
 
 You can generate and copy random integers to create a reproducible psuedo-random
 generator.
@@ -168,11 +169,11 @@ initialSeed2 stateHi stateLo =
 
 
 {-| Like `initialSeed2`, but takes only one integer. Mostly for compatibility
-with core.
+with core. The integer provided becomes the high bits of the seed.
 -}
 initialSeed : Int -> Seed
-initialSeed =
-    initialSeed2 0
+initialSeed i =
+    initialSeed2 i 0
 
 
 magicFactor : Int64
