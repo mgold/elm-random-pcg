@@ -26,17 +26,17 @@ It seems that the package website doesn't show modules in type annotations, so h
 -}
 fission : Random.Seed -> ( Random.Pcg.Seed, Random.Seed )
 fission stdSeed0 =
-  let
-    gen =
-      Random.int 0 0xFFFFFFFF
+    let
+        gen =
+            Random.int 0 0xFFFFFFFF
 
-    ( a, stdSeed1 ) =
-      Random.step gen stdSeed0
+        ( a, stdSeed1 ) =
+            Random.step gen stdSeed0
 
-    ( b, stdSeed2 ) =
-      Random.step gen stdSeed1
+        ( b, stdSeed2 ) =
+            Random.step gen stdSeed1
 
-    pcgSeed1 =
-      Random.Pcg.initialSeed2 a b
-  in
-    ( pcgSeed1, stdSeed2 )
+        pcgSeed1 =
+            Random.Pcg.initialSeed2 a b
+    in
+        ( pcgSeed1, stdSeed2 )
