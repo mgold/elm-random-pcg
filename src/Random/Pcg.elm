@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -26,7 +26,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, initialSeed
+@docs Seed, initialSeed, independentSeed
 
 # Constants
 @docs minInt, maxInt
@@ -35,24 +35,6 @@ and is not cryptographically secure.
 import Bitwise
 import Json.Encode
 import Json.Decode
-
-
-(&) =
-    Bitwise.and
-
-
-(<<) =
-    Bitwise.shiftLeft
-
-
-(>>>) =
-    Bitwise.shiftRightLogical
-
-
-{-| Private: A type used to represent 64-bit integers.
--}
-type Int64
-    = Int64 Int Int
 
 
 {-| A `Generator` is like a recipe for generating certain random values. So a
@@ -186,13 +168,13 @@ peel (Seed state) =
 integer : Int -> Seed -> ( Int, Seed )
 integer max seed0 =
     -- fast path for power of 2
-    if ((max & (max - 1)) == 0) then
-        ( peel seed0 & (max - 1) >>> 0, next seed0 )
+    if ((max `Bitwise.and` (max - 1)) == 0) then
+        ( peel seed0 `Bitwise.and` (max - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
     else
         let
             threshhold =
                 -- essentially: period % max
-                ((-max >>> 0) % max) >>> 0
+                ((-max `Bitwise.shiftRightLogical` 0) % max) `Bitwise.shiftRightLogical` 0
 
             accountForBias : Seed -> ( Int, Seed )
             accountForBias seed =
@@ -275,10 +257,10 @@ float min max =
 
                 -- Get a uniformly distributed IEEE-754 double between 0.0 and 1.0
                 hi =
-                    toFloat (n0 & 0x03FFFFFF) * 1.0
+                    toFloat (n0 `Bitwise.and` 0x03FFFFFF) * 1.0
 
                 lo =
-                    toFloat (n1 & 0x07FFFFFF) * 1.0
+                    toFloat (n1 `Bitwise.and` 0x07FFFFFF) * 1.0
 
                 val =
                     ((hi * bit27) + lo) / bit53
@@ -701,3 +683,7 @@ maybe genBool genA =
                     else
                         constant Nothing
 
+{-| -}
+independentSeed : Generator Seed
+independentSeed =
+    Generator <| \seed -> (seed, seed)
