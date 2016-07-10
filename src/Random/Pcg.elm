@@ -160,7 +160,7 @@ peel (Seed state) =
     let
         word = ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
     in
-        Bitwise.shiftRightLogical (Bitwise.or (word `Bitwise.shiftRightLogical` 22) word ) 0
+        Bitwise.shiftRightLogical (Bitwise.xor (word `Bitwise.shiftRightLogical` 22) word ) 0
 
 
 
