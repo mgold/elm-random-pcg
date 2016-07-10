@@ -160,38 +160,8 @@ peel (Seed state) =
     let
         word = ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
     in
-        (word `Bitwise.shiftRightLogical` 22) `Bitwise.xor` word
+        Bitwise.shiftRightLogical (Bitwise.or (word `Bitwise.shiftRightLogical` 22) word ) 0
 
-
-{-| PRIVATE: Get a uniformly distributed 32 bit integer between [0, max).
--}
-integer : Int -> Seed -> ( Int, Seed )
-integer max seed0 =
-    -- fast path for power of 2
-    if ((max `Bitwise.and` (max - 1)) == 0) then
-        ( peel seed0 `Bitwise.and` (max - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
-    else
-        let
-            threshhold =
-                -- essentially: period % max
-                ((-max `Bitwise.shiftRightLogical` 0) % max) `Bitwise.shiftRightLogical` 0
-
-            accountForBias : Seed -> ( Int, Seed )
-            accountForBias seed =
-                let
-                    x =
-                        peel seed
-
-                    seedN =
-                        next seed
-                in
-                    if x < threshhold then
-                        -- in practice this recurses almost never
-                        accountForBias seedN
-                    else
-                        ( x % max, seedN )
-        in
-            accountForBias seed0
 
 
 {-| Generate 32-bit integers in a given range, inclusive.
@@ -209,21 +179,42 @@ effect will only be noticable if you are generating tens of thousands of random 
 
 -}
 int : Int -> Int -> Generator Int
-int min max =
-    Generator
-        <| \seed0 ->
-            if min == max then
-                ( min, seed0 )
-            else
-                let
-                    range =
-                        abs (max - min) + 1
+int a b =
+      Generator <| \seed0 ->
+        let
+          (lo,hi) =
+            if a < b then (a,b) else (b,a)
 
-                    ( i, seed1 ) =
-                        integer range seed0
-                in
-                    ( i + min, seed1 )
+          range =
+            hi - lo + 1
 
+        in
+          -- fast path for power of 2
+        if ((range `Bitwise.and` (range - 1)) == 0) then
+            ( peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
+        else
+            let
+                threshhold =
+                    -- essentially: period % max
+                    ((-range `Bitwise.shiftRightLogical` 0) `rem` range) `Bitwise.shiftRightLogical` 0
+
+                -- See "Explanation of the PCG algorithm" for why this is required.
+                accountForBias : Seed -> ( Int, Seed )
+                accountForBias seed =
+                    let
+                        x =
+                            peel seed
+
+                        seedN =
+                            next seed
+                    in
+                        if x < threshhold then
+                        -- in practice this recurses almost never
+                            accountForBias seedN
+                        else
+                            ( x `rem` range + lo, seedN )
+            in
+                accountForBias seed0
 
 bit53 =
     9007199254740992.0
