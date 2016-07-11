@@ -1,5 +1,7 @@
 # Benchmarks for Random.Pcg
 
+**These tests rely on a library that has not been update for 0.17.**
+
 These benchmarks are possible thanks to [JoeyEremondi/elm-benchmark](https://github.com/JoeyEremondi/elm-benchmark). To
 run them yourself, run `elm-reactor` in this directory and open `Test.elm`.
 
