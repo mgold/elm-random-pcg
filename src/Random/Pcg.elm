@@ -90,7 +90,8 @@ values. Generators are much easier to chain and combine than functions that take
 and return seeds. Creating and managing seeds should happen "high up" in your
 program.
 -}
-type Seed = Seed Int
+type Seed
+    = Seed Int
 
 
 {-| Take two integers to fully initialize the 64-bit state of the random
@@ -139,29 +140,38 @@ with core. The integer provided becomes the high bits of the seed.
 initialSeed : Int -> Seed
 initialSeed x =
     let
-      (Seed state1) = next (Seed 0)
-      state2 = state1 + x
+        (Seed state1) =
+            next (Seed 0)
+
+        state2 =
+            state1 + x
     in
-      next (Seed state2)
+        next (Seed state2)
+
 
 
 -- derive the next seed by cranking the LCG
+
+
 next : Seed -> Seed
 next (Seed state0) =
     -- magic constants taken from Numerical Recipes
     Seed (Bitwise.shiftRightLogical ((state0 * 1664525) + 1013904223) 0)
 
 
+
 -- obtain a psuedorandom 32-bit integer
+
+
 peel : Seed -> Int
 peel (Seed state) =
     -- This is the RXS-M-SH version of PCG, see section 6.3.4 of the paper
     -- and line 184 of pcg_variants.h in the 0.94 C implementation
     let
-        word = ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
+        word =
+            ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
     in
-        Bitwise.shiftRightLogical (Bitwise.xor (word `Bitwise.shiftRightLogical` 22) word ) 0
-
+        Bitwise.shiftRightLogical (Bitwise.xor (word `Bitwise.shiftRightLogical` 22) word) 0
 
 
 {-| Generate 32-bit integers in a given range, inclusive.
@@ -180,41 +190,44 @@ effect will only be noticable if you are generating tens of thousands of random 
 -}
 int : Int -> Int -> Generator Int
 int a b =
-      Generator <| \seed0 ->
-        let
-          (lo,hi) =
-            if a < b then (a,b) else (b,a)
-
-          range =
-            hi - lo + 1
-
-        in
-          -- fast path for power of 2
-        if ((range `Bitwise.and` (range - 1)) == 0) then
-            ( peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
-        else
+    Generator <|
+        \seed0 ->
             let
-                threshhold =
-                    -- essentially: period % max
-                    ((-range `Bitwise.shiftRightLogical` 0) `rem` range) `Bitwise.shiftRightLogical` 0
+                ( lo, hi ) =
+                    if a < b then
+                        ( a, b )
+                    else
+                        ( b, a )
 
-                -- See "Explanation of the PCG algorithm" for why this is required.
-                accountForBias : Seed -> ( Int, Seed )
-                accountForBias seed =
-                    let
-                        x =
-                            peel seed
-
-                        seedN =
-                            next seed
-                    in
-                        if x < threshhold then
-                        -- in practice this recurses almost never
-                            accountForBias seedN
-                        else
-                            ( x `rem` range + lo, seedN )
+                range =
+                    hi - lo + 1
             in
-                accountForBias seed0
+                -- fast path for power of 2
+                if ((range `Bitwise.and` (range - 1)) == 0) then
+                    ( peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
+                else
+                    let
+                        threshhold =
+                            -- essentially: period % max
+                            ((-range `Bitwise.shiftRightLogical` 0) `rem` range) `Bitwise.shiftRightLogical` 0
+
+                        accountForBias : Seed -> ( Int, Seed )
+                        accountForBias seed =
+                            let
+                                x =
+                                    peel seed
+
+                                seedN =
+                                    next seed
+                            in
+                                if x < threshhold then
+                                    -- in practice this recurses almost never
+                                    accountForBias seedN
+                                else
+                                    ( x `rem` range + lo, seedN )
+                    in
+                        accountForBias seed0
+
 
 bit53 =
     9007199254740992.0
@@ -233,8 +246,8 @@ that produces numbers between 0 and 1.
 -}
 float : Float -> Float -> Generator Float
 float min max =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 -- Get 64 bits of randomness
                 seed1 =
@@ -264,7 +277,6 @@ float min max =
                     val * range + min
             in
                 ( scaled, next seed1 )
-
 
 
 {-| Create a generator that produces boolean values with equal probability. This
@@ -323,8 +335,8 @@ pair genA genB =
 -}
 list : Int -> Generator a -> Generator (List a)
 list n (Generator generate) =
-    Generator
-        <| \seed ->
+    Generator <|
+        \seed ->
             listHelp [] n generate seed
 
 
@@ -365,8 +377,8 @@ These examples show how to generate letters based on a basic integer generator.
 -}
 map : (a -> b) -> Generator a -> Generator b
 map func (Generator genA) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -388,8 +400,8 @@ arguments that both need to be given random inputs.
 -}
 map2 : (a -> b -> c) -> Generator a -> Generator b -> Generator c
 map2 func (Generator genA) (Generator genB) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -412,8 +424,8 @@ map2 func (Generator genA) (Generator genB) =
 -}
 map3 : (a -> b -> c -> d) -> Generator a -> Generator b -> Generator c -> Generator d
 map3 func (Generator genA) (Generator genB) (Generator genC) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -436,8 +448,8 @@ colors.
 -}
 map4 : (a -> b -> c -> d -> e) -> Generator a -> Generator b -> Generator c -> Generator d -> Generator e
 map4 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -458,8 +470,8 @@ map4 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) =
 -}
 map5 : (a -> b -> c -> d -> e -> f) -> Generator a -> Generator b -> Generator c -> Generator d -> Generator e -> Generator f
 map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (Generator genE) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -524,8 +536,8 @@ probably use `map` instead.
 -}
 andThen : Generator a -> (a -> Generator b) -> Generator b
 andThen (Generator generateA) callback =
-    Generator
-        <| \seed ->
+    Generator <|
+        \seed ->
             let
                 ( result, newSeed ) =
                     generateA seed
@@ -555,12 +567,13 @@ also avoid predicates that are merely very difficult to satisfy.
 filter : (a -> Bool) -> Generator a -> Generator a
 filter predicate generator =
     generator
-        `andThen` (\a ->
-                    if predicate a then
-                        constant a
-                    else
-                        filter predicate generator
-                  )
+        `andThen`
+            (\a ->
+                if predicate a then
+                    constant a
+                else
+                    filter predicate generator
+            )
 
 
 {-| Produce `True` one-in-n times on average.
@@ -668,13 +681,15 @@ You can use `bool` or `oneIn n` for the first argument.
 maybe : Generator Bool -> Generator a -> Generator (Maybe a)
 maybe genBool genA =
     genBool
-        `andThen` \b ->
-                    if b then
-                        map Just genA
-                    else
-                        constant Nothing
+        `andThen`
+            \b ->
+                if b then
+                    map Just genA
+                else
+                    constant Nothing
+
 
 {-| -}
 independentSeed : Generator Seed
 independentSeed =
-    Generator <| \seed -> (seed, seed)
+    Generator <| \seed -> ( seed, seed )
