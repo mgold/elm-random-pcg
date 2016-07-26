@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed, independentSeed)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed, independentSeed, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -26,7 +26,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, independentSeed
+@docs Seed, independentSeed, toJson, fromJson
 
 # Constants
 @docs minInt, maxInt
@@ -678,3 +678,25 @@ maybe genBool genA =
 independentSeed : Generator Seed
 independentSeed =
     Generator <| \seed -> ( seed, seed )
+
+
+{-| Serialize a seed as a [JSON value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
+to be sent out a port, stored in local storage, and so on. The seed can be
+recovered using `fromJson`.
+
+Do not inspect or change the resulting JSON value.
+-}
+toJson : Seed -> Json.Encode.Value
+toJson (Seed state) =
+    Json.Encode.int state
+
+
+{-| A JSON decoder that can recover seeds encoded using `toJson`. Do not pass a
+value obtained from anywhere else.
+
+    Json.Decode.decodeValue fromJson (toJson mySeed) == Ok mySeed
+
+-}
+fromJson : Json.Decode.Decoder Seed
+fromJson =
+    Json.Decode.map Seed Json.Decode.int
