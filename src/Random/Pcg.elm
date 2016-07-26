@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed, independentSeed)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -14,7 +14,7 @@ This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
 
 # Getting Started
-@docs initialSeed2, step
+@docs initialSeed, step
 
 # Basic Generators
 @docs Generator, bool, int, float, oneIn, sample
@@ -26,7 +26,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, initialSeed, independentSeed
+@docs Seed, independentSeed
 
 # Constants
 @docs minInt, maxInt
@@ -94,48 +94,33 @@ type Seed
     = Seed Int
 
 
-{-| Take two integers to fully initialize the 64-bit state of the random
-number generator. Only the least significant 32 bits of each integer matter, and
-those bits should be as random as possible. The first argument is the high bits,
-but if you're pulling from a random data source, it shouldn't matter.
-
-You can generate and copy random integers to create a reproducible psuedo-random
-generator.
+{-| Initialize the state of the random number generator. The input should be
+a randomly chosen 32-bit integer. You can generate and copy random integers to
+create a reproducible psuedo-random generator.
 
     $ node
     > Math.floor(Math.random()*0xFFFFFFFF)
     227852860
-    > Math.floor(Math.random()*0xFFFFFFFF)
-    1498709020
 
     -- Elm
     seed0 : Seed
-    seed0 = initialSeed2 227852860 1498709020
+    seed0 = initialSeed 227852860
 
 Alternatively, you can generate the random integers on page load and pass them
 through a port. The program will be different every time.
 
     -- Elm
-    port randomSeed : (Int, Int)
+    port randomSeed : Int
 
     seed0 : Seed
-    seed0 = (uncurry initialSeed2) randomSeed
+    seed0 = initialSeed randomSeed
 
     -- JS
-    Elm.fullscreen(Elm.ModuleName,
-      {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF),
-                    Math.floor(Math.random()*0xFFFFFFFF)] })
+    Elm.ModuleName.fullscreen(
+      { randomSeed: Math.floor(Math.random()*0xFFFFFFFF) })
 
 Either way, you should initialize a random seed only once. After that, whenever
 you use a seed, you'll get another one back.
--}
-initialSeed2 : Int -> Int -> Seed
-initialSeed2 stateHi stateLo =
-    initialSeed (Bitwise.or stateHi stateLo)
-
-
-{-| Like `initialSeed2`, but takes only one integer. Mostly for compatibility
-with core. The integer provided becomes the high bits of the seed.
 -}
 initialSeed : Int -> Seed
 initialSeed x =
