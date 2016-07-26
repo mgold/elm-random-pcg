@@ -23,7 +23,13 @@ secure**.
 
 Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).
 
-## Upgrading from 1.x
+## Changelog (major versions only)
+### 3.0.0
+* Change implementation to use the RXS-M-SH variant of PCG. Now much faster and not much worse statistically.
+* Remove `initialSeed2`, since there are now only 32 bits of state.
+* `Random.Pcg.Interop.fission` has been changed to a (core) generator of (PCG) seeds.
+
+### 2.0.0
 * Upgraded for 0.17.
 * `generate` renamed `step` to match core 4.0.0 API.
 * Module renamed `Random.Pcg` from `Random.PCG`.
