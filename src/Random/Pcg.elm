@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -16,7 +16,7 @@ This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
 
 # Getting Started
-@docs initialSeed2, step
+@docs initialSeed2, step, generate
 
 # Basic Generators
 @docs Generator, bool, int, float, oneIn, sample
@@ -37,6 +37,8 @@ and is not cryptographically secure.
 import Bitwise
 import Json.Encode
 import Json.Decode
+import Time
+import Task
 
 
 (&) =
@@ -100,6 +102,20 @@ Our example is best written as:
 step : Generator a -> Seed -> ( a, Seed )
 step (Generator generator) seed =
     generator seed
+
+
+{-| Create a command that will generate random values.
+-}
+generate : (a -> msg) -> Generator a -> Cmd msg
+generate toMsg generator =
+    Time.now
+        |> Task.map (round >> initialSeed >> step generator >> fst)
+        |> Task.perform never toMsg
+
+
+never : Never -> a
+never a =
+    never a
 
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
