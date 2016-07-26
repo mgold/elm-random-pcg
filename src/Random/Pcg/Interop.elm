@@ -21,22 +21,9 @@ import Random.Pcg
 
 It seems that the package website doesn't show modules in type annotations, so here it is in full:
 
-    fission : Random.Seed -> (Random.Pcg.Seed, Random.Seed)
+    fission : Random.Generator (Random.Pcg.Seed)
 
 -}
-fission : Random.Seed -> ( Random.Pcg.Seed, Random.Seed )
-fission stdSeed0 =
-    let
-        gen =
-            Random.int 0 0xFFFFFFFF
-
-        ( a, stdSeed1 ) =
-            Random.step gen stdSeed0
-
-        ( b, stdSeed2 ) =
-            Random.step gen stdSeed1
-
-        pcgSeed1 =
-            Random.Pcg.initialSeed2 a b
-    in
-        ( pcgSeed1, stdSeed2 )
+fission : Random.Generator (Random.Pcg.Seed)
+fission =
+    Random.int 0 0xFFFFFFFF |> Random.map Random.Pcg.initialSeed
