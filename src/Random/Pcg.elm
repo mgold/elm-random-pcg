@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed, independentSeed, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -26,7 +26,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, independentSeed, toJson, fromJson
+@docs Seed, independentSeed, fastForward, toJson, fromJson
 
 # Constants
 @docs minInt, maxInt
@@ -678,6 +678,74 @@ maybe genBool genA =
 independentSeed : Generator Seed
 independentSeed =
     Generator <| \seed -> ( seed, seed )
+
+
+mul32 : Int -> Int -> Int
+mul32 a b =
+    -- multiply 32-bit integers without overflow
+    let
+        ah =
+            (a `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+
+        al =
+            a `Bitwise.and` 0xFFFF
+
+        bh =
+            (b `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+
+        bl =
+            b `Bitwise.and` 0xFFFF
+    in
+        (al * bl) + (((ah * bl + al * bh) `Bitwise.shiftLeft` 16) `Bitwise.shiftRightLogical` 0) |> Bitwise.or 0
+
+
+{-| Fast forward a seed the given number of steps, which may be negative (the
+seed will be "rewound"). This allows a single seed to serve as a random-access
+lookup table of random numbers. (To be sure no one else uses the seed, use
+`step independentSeed` to split off your own.)
+
+    diceRollTable : Int -> Int
+    diceRollTable i =
+      fastForward i mySeed |> step (int 1 6) |> fst
+-}
+fastForward : Int -> Seed -> Seed
+fastForward delta0 (Seed state0) =
+    let
+        helper : Int -> Int -> Int -> Int -> Int -> Bool -> ( Int, Int )
+        helper accMult accPlus curMult curPlus delta repeat =
+            let
+                ( accMult', accPlus' ) =
+                    if delta `Bitwise.and` 1 == 1 then
+                        ( mul32 accMult curMult
+                        , Bitwise.shiftRightLogical (mul32 accPlus curMult + curPlus) 0
+                        )
+                    else
+                        ( accMult, accPlus )
+
+                curPlus' =
+                    mul32 (curMult + 1) curPlus
+
+                curMult' =
+                    mul32 curMult curMult
+
+                newDelta =
+                    -- divide by 2
+                    delta `Bitwise.shiftRightLogical` 1
+            in
+                if newDelta == 0 then
+                    if delta0 < 0 && repeat then
+                        -- if passed a negative number, negate everything once
+                        helper accMult' accPlus' curMult' curPlus' -1 False
+                    else
+                        ( accMult', accPlus' )
+                else
+                    helper accMult' accPlus' curMult' curPlus' newDelta repeat
+
+        ( accMultFinal, accPlusFinal ) =
+            -- magic constants same as in peel
+            helper 1 0 1664525 1013904223 delta0 True
+    in
+        Seed <| Bitwise.shiftRightLogical (mul32 accMultFinal state0 + accPlusFinal) 0
 
 
 {-| Serialize a seed as a [JSON value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
