@@ -4,7 +4,7 @@ import Html
 import Html.App
 import Bench.Native as Benchmark
 import Bench.Native exposing (Benchmark, BenchmarkSuite, bench, suite)
-import Random as Ran
+import Random.Pcg as Ran
 
 
 main : Program Never

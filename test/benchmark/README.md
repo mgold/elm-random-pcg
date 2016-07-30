@@ -11,4 +11,4 @@ wget https://cdn.jsdelivr.net/benchmarkjs/2.1.0/benchmark.js
 ```
 
 Then adjust the import of `Random` in `Bencher.elm` to control which library is being benchmarked. Finally run `sh prep-bench.sh` then
-`elm-reactor` in this directory and open `index.html`.
+`elm-reactor` in this directory and open `run-benchmarks.html`.
