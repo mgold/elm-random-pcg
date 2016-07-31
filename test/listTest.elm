@@ -1,7 +1,11 @@
 module ListTest exposing (..)
 
-{-| Rolls a die many times and collates the output. Judging whether the result is sufficiently random
-is wholly unscientific; this test is really to show that independent seeds aren't *trivially* wrong.
+{-| The central limit theorem states that if you sample any distribution and take the mean, and do that many times,
+those means will be on a standard distribution.
+
+That's exactly what this test does, using an independent seed. Judging how "good" the distribution is versus how good it
+"should" be is beyond the scope of this example. This test is really to show that independent seeds aren't *trivially*
+wrong.
 -}
 
 import Dict exposing (Dict)
@@ -16,10 +20,17 @@ seed0 =
 
 
 gen =
-    -- smaller range is more likely to show problems
     Random.int 1 6
-        |> Random.list 50
+        |> Random.list 15
+        |> Random.map mean
+        |> Random.map (\x -> round (10 * x))
+        |> Random.list 800
         |> Random.map toMultiSet
+
+
+mean : List Int -> Float
+mean xs =
+    toFloat (List.sum xs) / toFloat (List.length xs)
 
 
 toMultiSet : List Int -> Dict Int Int
