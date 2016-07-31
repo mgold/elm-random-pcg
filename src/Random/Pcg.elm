@@ -91,7 +91,7 @@ and return seeds. Creating and managing seeds should happen "high up" in your
 program.
 -}
 type Seed
-    = Seed Int
+    = Seed Int Int
 
 
 {-| Initialize the state of the random number generator. The input should be
@@ -125,23 +125,25 @@ you use a seed, you'll get another one back.
 initialSeed : Int -> Seed
 initialSeed x =
     let
-        (Seed state1) =
-            next (Seed 0)
+        (Seed state1 incr) =
+            next (Seed 0 1013904223)
 
         state2 =
             state1 + x
     in
-        next (Seed state2)
+        next (Seed state2 incr)
 
 
 
--- derive the next seed by cranking the LCG
+{--
+The magic constants 1013904223 and 1664525 are from Numerical Recipes. They are
+inlined for performance.
+--}
 
 
 next : Seed -> Seed
-next (Seed state0) =
-    -- magic constants taken from Numerical Recipes
-    Seed (Bitwise.shiftRightLogical ((state0 * 1664525) + 1013904223) 0)
+next (Seed state0 incr) =
+    Seed (Bitwise.shiftRightLogical ((state0 * 1664525) + incr) 0) incr
 
 
 
@@ -149,7 +151,7 @@ next (Seed state0) =
 
 
 peel : Seed -> Int
-peel (Seed state) =
+peel (Seed state _) =
     -- This is the RXS-M-SH version of PCG, see section 6.3.4 of the paper
     -- and line 184 of pcg_variants.h in the 0.94 C implementation
     let
@@ -674,10 +676,53 @@ maybe genBool genA =
                     constant Nothing
 
 
-{-| -}
+{-| A generator that produces a seed that is independent of any other seed in
+the program. These seeds will generate their own unqiue sequences of random
+values. They are useful when you need an unknown amount of randomness *later*
+but can request only a fixed amount of randomness *now*.
+
+Let's say you write a component that uses some randomness to initialize itself
+and then never needs randomness again. You can easily write a `Generator
+Component` by mapping over the generators it needs. But if component requires
+randomness after initialization, it should keep its own independent seed, which
+it can get by mapping over *this* generator.
+
+    type alias Component = { seed : Seed }
+
+    genComponent : Generator Component
+    genComponent = map Component independentSeed
+
+If you have a lot of components, you can initialize them like so:
+
+    genComponents : List (Seed -> a) -> Generator (List a)
+    genComponents constructors =
+        list (List.length constructors) independentSeed
+            |> map (List.map2 (<|) constructors)
+
+The independent seeds are extremely likely to be distinct for all practical
+purposes. However, it is not proven that there are no pathological cases.
+-}
 independentSeed : Generator Seed
 independentSeed =
-    Generator <| \seed -> ( seed, seed )
+    Generator <|
+        \seed0 ->
+            let
+                gen =
+                    int 0 0xFFFFFFFF
+
+                ( ( state, b, c ), seed1 ) =
+                    step (map3 (,,) gen gen gen) seed0
+
+                {--
+                Although it probably doesn't hold water theoretically, xor two
+                random numbers to make an increment less likely to be
+                pathological. Then make sure that it's odd, which is required.
+                Finally step it once before use.
+                --}
+                incr =
+                    (b `Bitwise.xor` c) `Bitwise.and` 1
+            in
+                ( seed1, next <| Seed state incr )
 
 
 mul32 : Int -> Int -> Int
@@ -709,7 +754,7 @@ lookup table of random numbers. (To be sure no one else uses the seed, use
       fastForward i mySeed |> step (int 1 6) |> fst
 -}
 fastForward : Int -> Seed -> Seed
-fastForward delta0 (Seed state0) =
+fastForward delta0 (Seed state0 incr) =
     let
         helper : Int -> Int -> Int -> Int -> Int -> Bool -> ( Int, Int )
         helper accMult accPlus curMult curPlus delta repeat =
@@ -742,29 +787,32 @@ fastForward delta0 (Seed state0) =
                     helper accMult' accPlus' curMult' curPlus' newDelta repeat
 
         ( accMultFinal, accPlusFinal ) =
-            -- magic constants same as in peel
-            helper 1 0 1664525 1013904223 delta0 True
+            -- magic constant same as in next
+            helper 1 0 1664525 incr delta0 True
     in
-        Seed <| Bitwise.shiftRightLogical (mul32 accMultFinal state0 + accPlusFinal) 0
+        Seed (Bitwise.shiftRightLogical (mul32 accMultFinal state0 + accPlusFinal) 0) incr
 
 
-{-| Serialize a seed as a [JSON value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
+{-| Serialize a seed as a [JSON
+value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
 to be sent out a port, stored in local storage, and so on. The seed can be
 recovered using `fromJson`.
 
 Do not inspect or change the resulting JSON value.
 -}
 toJson : Seed -> Json.Encode.Value
-toJson (Seed state) =
-    Json.Encode.int state
+toJson (Seed state incr) =
+    Json.Encode.list [ Json.Encode.int state, Json.Encode.int incr ]
 
 
-{-| A JSON decoder that can recover seeds encoded using `toJson`. Do not pass a
-value obtained from anywhere else.
+{-| A JSON decoder that can recover seeds encoded using `toJson`. Alternatively,
+pass an integer to create a seed using `initialSeed`.
 
     Json.Decode.decodeValue fromJson (toJson mySeed) == Ok mySeed
-
 -}
 fromJson : Json.Decode.Decoder Seed
 fromJson =
-    Json.Decode.map Seed Json.Decode.int
+    Json.Decode.oneOf
+        [ Json.Decode.tuple2 Seed Json.Decode.int Json.Decode.int
+        , Json.Decode.map initialSeed Json.Decode.int
+        ]
