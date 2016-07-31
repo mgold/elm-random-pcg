@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed, independentSeed, fastForward, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -14,7 +14,7 @@ This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
 
 # Getting Started
-@docs initialSeed, step
+@docs initialSeed, step, generate
 
 # Basic Generators
 @docs Generator, bool, int, float, oneIn, sample
@@ -35,6 +35,8 @@ and is not cryptographically secure.
 import Bitwise
 import Json.Encode
 import Json.Decode
+import Task
+import Time
 
 
 {-| A `Generator` is like a recipe for generating certain random values. So a
@@ -80,6 +82,33 @@ Our example is best written as:
 step : Generator a -> Seed -> ( a, Seed )
 step (Generator generator) seed =
     generator seed
+
+
+{-| Create a Command that will generate random values according to the supplied
+`Generator`.
+
+Think of this function as an alternative to `step`, since they both provide a
+way to actually get the random values that you want. This function frees you
+from worrying about seeds entirely, but as a tradeoff, you get your random
+values asynchronously, in their own Message. Additionally, due to constraints on
+third-party packages, it's possible that multiple commands sent at the same
+moment will return the same values.
+
+You can also think of this function as an alternative to `independentSeed`,
+since they both allow you to use randomness in deeply nested components. In the
+case of this function, it's through sending Commands up the chain that you have
+to set up anyway.
+-}
+generate : (a -> msg) -> Generator a -> Cmd msg
+generate toMsg generator =
+    Time.now
+        |> Task.map (round >> initialSeed >> step generator >> fst)
+        |> Task.perform never toMsg
+
+
+never : Never -> a
+never a =
+    never a
 
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
