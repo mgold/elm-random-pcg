@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, initialSeed2, initialSeed, independentSeed, fastForward, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -8,15 +8,13 @@ with functions like [`list`](#list) and [`map`](#map).
 You run a `Generator` by calling the [`step`](#step) function, which
 also takes a random [`Seed`](#Seed), and passes back a new seed. You should
 never use the same seed twice because you will get the same result! If you need
-random values over time, you should store the most recent seed in your model. If
-you have many separate models, you can give them all [independent
-seeds](#independentSeed).
+random values over time, you should store the most recent seed in your model.
 
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
 
 # Getting Started
-@docs initialSeed2, step
+@docs initialSeed, step, generate
 
 # Basic Generators
 @docs Generator, bool, int, float, oneIn, sample
@@ -28,7 +26,7 @@ and is not cryptographically secure.
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
 
 # Working With Seeds
-@docs Seed, initialSeed, independentSeed, fastForward, toJson, fromJson
+@docs Seed, independentSeed, fastForward, toJson, fromJson
 
 # Constants
 @docs minInt, maxInt
@@ -37,24 +35,8 @@ and is not cryptographically secure.
 import Bitwise
 import Json.Encode
 import Json.Decode
-
-
-(&) =
-    Bitwise.and
-
-
-(<<) =
-    Bitwise.shiftLeft
-
-
-(>>>) =
-    Bitwise.shiftRightLogical
-
-
-{-| Private: A type used to represent 64-bit integers.
--}
-type Int64
-    = Int64 Int Int
+import Task
+import Time
 
 
 {-| A `Generator` is like a recipe for generating certain random values. So a
@@ -102,6 +84,33 @@ step (Generator generator) seed =
     generator seed
 
 
+{-| Create a Command that will generate random values according to the supplied
+`Generator`.
+
+Think of this function as an alternative to `step`, since they both provide a
+way to actually get the random values that you want. This function frees you
+from worrying about seeds entirely, but as a tradeoff, you get your random
+values asynchronously, in their own Message. Additionally, due to constraints on
+third-party packages, it's possible that multiple commands sent at the same
+moment will return the same values.
+
+You can also think of this function as an alternative to `independentSeed`,
+since they both allow you to use randomness in deeply nested components. In the
+case of this function, it's through sending Commands up the chain that you have
+to set up anyway.
+-}
+generate : (a -> msg) -> Generator a -> Cmd msg
+generate toMsg generator =
+    Time.now
+        |> Task.map (round >> initialSeed >> step generator >> fst)
+        |> Task.perform never toMsg
+
+
+never : Never -> a
+never a =
+    never a
+
+
 {-| A `Seed` is the source of randomness in the whole system. It hides the
 current state of the random number generator.
 
@@ -111,151 +120,74 @@ and return seeds. Creating and managing seeds should happen "high up" in your
 program.
 -}
 type Seed
-    = -- state and increment
-      Seed Int64 Int64
+    = Seed Int Int
 
 
-{-| Take two integers to fully initialize the 64-bit state of the random
-number generator. Only the least significant 32 bits of each integer matter, and
-those bits should be as random as possible. The first argument is the high bits,
-but if you're pulling from a random data source, it shouldn't matter.
-
-You can generate and copy random integers to create a reproducible psuedo-random
-generator.
+{-| Initialize the state of the random number generator. The input should be
+a randomly chosen 32-bit integer. You can generate and copy random integers to
+create a reproducible psuedo-random generator.
 
     $ node
     > Math.floor(Math.random()*0xFFFFFFFF)
     227852860
-    > Math.floor(Math.random()*0xFFFFFFFF)
-    1498709020
 
     -- Elm
     seed0 : Seed
-    seed0 = initialSeed2 227852860 1498709020
+    seed0 = initialSeed 227852860
 
 Alternatively, you can generate the random integers on page load and pass them
 through a port. The program will be different every time.
 
     -- Elm
-    port randomSeed : (Int, Int)
+    port randomSeed : Int
 
     seed0 : Seed
-    seed0 = (uncurry initialSeed2) randomSeed
+    seed0 = initialSeed randomSeed
 
     -- JS
-    Elm.fullscreen(Elm.ModuleName,
-      {randomSeed: [Math.floor(Math.random()*0xFFFFFFFF),
-                    Math.floor(Math.random()*0xFFFFFFFF)] })
+    Elm.ModuleName.fullscreen(
+      { randomSeed: Math.floor(Math.random()*0xFFFFFFFF) })
 
 Either way, you should initialize a random seed only once. After that, whenever
 you use a seed, you'll get another one back.
 -}
-initialSeed2 : Int -> Int -> Seed
-initialSeed2 stateHi stateLo =
+initialSeed : Int -> Seed
+initialSeed x =
     let
-        incr =
-            Int64 0x14057B7E 0xF767814F
-
-        seed0 =
-            Seed (Int64 0 0) incr
-
-        (Seed state1 _) =
-            next seed0
+        (Seed state1 incr) =
+            next (Seed 0 1013904223)
 
         state2 =
-            add64 state1 <| Int64 (stateHi >>> 0) (stateLo >>> 0)
+            state1 + x
     in
-        Seed state2 incr |> next
+        next (Seed state2 incr)
 
 
-{-| Like `initialSeed2`, but takes only one integer. Mostly for compatibility
-with core. The integer provided becomes the high bits of the seed.
--}
-initialSeed : Int -> Seed
-initialSeed i =
-    initialSeed2 i 0
+
+{--
+The magic constants 1013904223 and 1664525 are from Numerical Recipes. They are
+inlined for performance.
+--}
 
 
-magicFactor : Int64
-magicFactor =
-    Int64 0x5851F42D 0x4C957F2D
-
-
-{-| PRIVATE: derive the next seed by cranking the LCG
--}
 next : Seed -> Seed
 next (Seed state0 incr) =
-    let
-        state1 =
-            mul64 state0 magicFactor
-
-        state2 =
-            add64 state1 incr
-    in
-        Seed state2 incr
+    Seed (Bitwise.shiftRightLogical ((state0 * 1664525) + incr) 0) incr
 
 
-{-| PRIVATE: obtain a psuedorandom 32-bit integer
--}
+
+-- obtain a psuedorandom 32-bit integer
+
+
 peel : Seed -> Int
-peel (Seed (Int64 oldHi oldLo) _) =
+peel (Seed state _) =
+    -- This is the RXS-M-SH version of PCG, see section 6.3.4 of the paper
+    -- and line 184 of pcg_variants.h in the 0.94 C implementation
     let
-        -- get least sig. 32 bits of ((oldstate >> 18) ^ oldstate) >> 27
-        xsHi =
-            oldHi >>> 18
-
-        xsLo =
-            ((oldLo >>> 18) `Bitwise.or` (oldHi << 14)) >>> 0
-
-        xsHi' =
-            (xsHi `Bitwise.xor` oldHi) >>> 0
-
-        xsLo' =
-            (xsLo `Bitwise.xor` oldLo) >>> 0
-
-        xorshifted =
-            ((xsLo' >>> 27) `Bitwise.or` (xsHi' << 5)) >>> 0
-
-        -- rotate xorshifted right a random amount, based on the most sig. 5 bits
-        -- bits of the old state.
-        rot =
-            oldHi >>> 27
-
-        rot2 =
-            ((-rot >>> 0) & 31) >>> 0
+        word =
+            ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
     in
-        ((xorshifted >>> rot) `Bitwise.or` (xorshifted << rot2)) >>> 0
-
-
-{-| PRIVATE: Get a uniformly distributed 32 bit integer between [0, max).
--}
-integer : Int -> Seed -> ( Int, Seed )
-integer max seed0 =
-    -- fast path for power of 2
-    if ((max & (max - 1)) == 0) then
-        ( peel seed0 & (max - 1) >>> 0, next seed0 )
-    else
-        let
-            threshhold =
-                -- essentially: period % max
-                ((-max >>> 0) % max) >>> 0
-
-            accountForBias : Seed -> ( Int, Seed )
-            accountForBias seed =
-                let
-                    x =
-                        peel seed
-
-                    seedN =
-                        next seed
-                in
-                    if x < threshhold then
-                        -- in practice this recurses almost never
-                        accountForBias seedN
-                    else
-                        ( x % max, seedN )
-        in
-            accountForBias seed0
+        Bitwise.shiftRightLogical (Bitwise.xor (word `Bitwise.shiftRightLogical` 22) word) 0
 
 
 {-| Generate 32-bit integers in a given range, inclusive.
@@ -273,20 +205,44 @@ effect will only be noticable if you are generating tens of thousands of random 
 
 -}
 int : Int -> Int -> Generator Int
-int min max =
-    Generator
-        <| \seed0 ->
-            if min == max then
-                ( min, seed0 )
-            else
-                let
-                    range =
-                        abs (max - min) + 1
+int a b =
+    Generator <|
+        \seed0 ->
+            let
+                ( lo, hi ) =
+                    if a < b then
+                        ( a, b )
+                    else
+                        ( b, a )
 
-                    ( i, seed1 ) =
-                        integer range seed0
-                in
-                    ( i + min, seed1 )
+                range =
+                    hi - lo + 1
+            in
+                -- fast path for power of 2
+                if ((range `Bitwise.and` (range - 1)) == 0) then
+                    ( peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
+                else
+                    let
+                        threshhold =
+                            -- essentially: period % max
+                            ((-range `Bitwise.shiftRightLogical` 0) `rem` range) `Bitwise.shiftRightLogical` 0
+
+                        accountForBias : Seed -> ( Int, Seed )
+                        accountForBias seed =
+                            let
+                                x =
+                                    peel seed
+
+                                seedN =
+                                    next seed
+                            in
+                                if x < threshhold then
+                                    -- in practice this recurses almost never
+                                    accountForBias seedN
+                                else
+                                    ( x `rem` range + lo, seedN )
+                    in
+                        accountForBias seed0
 
 
 bit53 =
@@ -306,8 +262,8 @@ that produces numbers between 0 and 1.
 -}
 float : Float -> Float -> Generator Float
 float min max =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 -- Get 64 bits of randomness
                 seed1 =
@@ -321,10 +277,10 @@ float min max =
 
                 -- Get a uniformly distributed IEEE-754 double between 0.0 and 1.0
                 hi =
-                    toFloat (n0 & 0x03FFFFFF) * 1.0
+                    toFloat (n0 `Bitwise.and` 0x03FFFFFF) * 1.0
 
                 lo =
-                    toFloat (n1 & 0x07FFFFFF) * 1.0
+                    toFloat (n1 `Bitwise.and` 0x07FFFFFF) * 1.0
 
                 val =
                     ((hi * bit27) + lo) / bit53
@@ -337,118 +293,6 @@ float min max =
                     val * range + min
             in
                 ( scaled, next seed1 )
-
-
-{-| A generator that produces a seed that is independent of any other seed in
-the program. These seeds will generate their own unqiue sequences of random
-values. They are useful when you need an unknown amount of randomness *later*
-but can request only a fixed amount of randomness *now*.
-
-Let's say you write a component that uses some randomness to initialize itself
-and then never needs randomness again. You can easily write a `Generator
-Component` by mapping over the generators it needs. But if component requires
-randomness after initialization, it should keep its own independent seed, which
-it can get by mapping over *this* generator.
-
-    type alias Component = { seed : Seed }
-
-    genComponent : Generator Component
-    genComponent = map Component independentSeed
-
-If you have a lot of components, you can initialize them like so:
-
-    genComponents : List (Seed -> a) -> Generator (List a)
-    genComponents constructors =
-      list (List.length constructors) independentSeed
-          |> map (List.map2 (<|) constructors)
-
-The independent seeds are extremely likely to be distinct for all practical
-purposes. However, it is not proven that there are no pathological cases.
--}
-independentSeed : Generator Seed
-independentSeed =
-    Generator
-        <| \seed0 ->
-            let
-                gen1 =
-                    int 0 0xFFFFFFFF
-
-                -- 2^32-1
-                gen4 =
-                    map4 (,,,) gen1 gen1 gen1 gen1
-
-                ( ( a, b, c, d ), seed1 ) =
-                    step gen4 seed0
-
-                dOdd =
-                    (d `Bitwise.or` 1) >>> 0
-
-                seed2 =
-                    Seed (Int64 a b) (Int64 c dOdd)
-            in
-                ( next seed2, next seed1 )
-
-
-{-| Fast forward a seed the given number of steps, which may be negative (the
-seed will be "rewound"). This allows a single seed to serve as a random-access
-lookup table of random numbers. (To be sure no one else uses the seed, use
-`step independentSeed` to split off your own.)
-
-    diceRollTable : Int -> Int
-    diceRollTable i =
-      fastForward i mySeed |> step (int 1 6) |> fst
--}
-fastForward : Int -> Seed -> Seed
-fastForward delta0 (Seed state0 incr) =
-    let
-        one =
-            Int64 0 1
-
-        zero =
-            Int64 0 0
-
-        helper : Int64 -> Int64 -> Int64 -> Int64 -> Int -> Bool -> ( Int64, Int64 )
-        helper accMult accPlus curMult curPlus delta repeat =
-            let
-                deltaOdd =
-                    delta & 1 == 1
-
-                accMult' =
-                    if deltaOdd then
-                        mul64 accMult curMult
-                    else
-                        accMult
-
-                accPlus' =
-                    if deltaOdd then
-                        add64 (mul64 accPlus curMult) curPlus
-                    else
-                        accPlus
-
-                curPlus' =
-                    mul64 (add64 curMult one) curPlus
-
-                curMult' =
-                    mul64 curMult curMult
-
-                newDelta =
-                    delta >>> 1
-            in
-                if newDelta == 0 then
-                    if delta0 < 0 && repeat then
-                        helper accMult' accPlus' curMult' curPlus' -1 False
-                    else
-                        ( accMult', accPlus' )
-                else
-                    helper accMult' accPlus' curMult' curPlus' newDelta repeat
-
-        ( accMultFinal, accPlusFinal ) =
-            helper one zero magicFactor incr delta0 True
-
-        state1 =
-            mul64 accMultFinal state0 |> add64 accPlusFinal
-    in
-        Seed state1 incr
 
 
 {-| Create a generator that produces boolean values with equal probability. This
@@ -507,15 +351,15 @@ pair genA genB =
 -}
 list : Int -> Generator a -> Generator (List a)
 list n (Generator generate) =
-    Generator
-        <| \seed ->
+    Generator <|
+        \seed ->
             listHelp [] n generate seed
 
 
 listHelp : List a -> Int -> (Seed -> ( a, Seed )) -> Seed -> ( List a, Seed )
 listHelp list n generate seed =
     if n < 1 then
-        ( List.reverse list, seed )
+        ( list, seed )
     else
         let
             ( value, newSeed ) =
@@ -549,8 +393,8 @@ These examples show how to generate letters based on a basic integer generator.
 -}
 map : (a -> b) -> Generator a -> Generator b
 map func (Generator genA) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -572,8 +416,8 @@ arguments that both need to be given random inputs.
 -}
 map2 : (a -> b -> c) -> Generator a -> Generator b -> Generator c
 map2 func (Generator genA) (Generator genB) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -596,8 +440,8 @@ map2 func (Generator genA) (Generator genB) =
 -}
 map3 : (a -> b -> c -> d) -> Generator a -> Generator b -> Generator c -> Generator d
 map3 func (Generator genA) (Generator genB) (Generator genC) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -620,8 +464,8 @@ colors.
 -}
 map4 : (a -> b -> c -> d -> e) -> Generator a -> Generator b -> Generator c -> Generator d -> Generator e
 map4 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -642,8 +486,8 @@ map4 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) =
 -}
 map5 : (a -> b -> c -> d -> e -> f) -> Generator a -> Generator b -> Generator c -> Generator d -> Generator e -> Generator f
 map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (Generator genE) =
-    Generator
-        <| \seed0 ->
+    Generator <|
+        \seed0 ->
             let
                 ( a, seed1 ) =
                     genA seed0
@@ -708,8 +552,8 @@ probably use `map` instead.
 -}
 andThen : Generator a -> (a -> Generator b) -> Generator b
 andThen (Generator generateA) callback =
-    Generator
-        <| \seed ->
+    Generator <|
+        \seed ->
             let
                 ( result, newSeed ) =
                     generateA seed
@@ -739,12 +583,13 @@ also avoid predicates that are merely very difficult to satisfy.
 filter : (a -> Bool) -> Generator a -> Generator a
 filter predicate generator =
     generator
-        `andThen` (\a ->
-                    if predicate a then
-                        constant a
-                    else
-                        filter predicate generator
-                  )
+        `andThen`
+            (\a ->
+                if predicate a then
+                    constant a
+                else
+                    filter predicate generator
+            )
 
 
 {-| Produce `True` one-in-n times on average.
@@ -852,132 +697,151 @@ You can use `bool` or `oneIn n` for the first argument.
 maybe : Generator Bool -> Generator a -> Generator (Maybe a)
 maybe genBool genA =
     genBool
-        `andThen` \b ->
-                    if b then
-                        map Just genA
+        `andThen`
+            \b ->
+                if b then
+                    map Just genA
+                else
+                    constant Nothing
+
+
+{-| A generator that produces a seed that is independent of any other seed in
+the program. These seeds will generate their own unqiue sequences of random
+values. They are useful when you need an unknown amount of randomness *later*
+but can request only a fixed amount of randomness *now*.
+
+Let's say you write a component that uses some randomness to initialize itself
+and then never needs randomness again. You can easily write a `Generator
+Component` by mapping over the generators it needs. But if component requires
+randomness after initialization, it should keep its own independent seed, which
+it can get by mapping over *this* generator.
+
+    type alias Component = { seed : Seed }
+
+    genComponent : Generator Component
+    genComponent = map Component independentSeed
+
+If you have a lot of components, you can initialize them like so:
+
+    genComponents : List (Seed -> a) -> Generator (List a)
+    genComponents constructors =
+        list (List.length constructors) independentSeed
+            |> map (List.map2 (<|) constructors)
+
+The independent seeds are extremely likely to be distinct for all practical
+purposes. However, it is not proven that there are no pathological cases.
+-}
+independentSeed : Generator Seed
+independentSeed =
+    Generator <|
+        \seed0 ->
+            let
+                gen =
+                    int 0 0xFFFFFFFF
+
+                ( ( state, b, c ), seed1 ) =
+                    step (map3 (,,) gen gen gen) seed0
+
+                {--
+                Although it probably doesn't hold water theoretically, xor two
+                random numbers to make an increment less likely to be
+                pathological. Then make sure that it's odd, which is required.
+                Finally step it once before use.
+                --}
+                incr =
+                    (b `Bitwise.xor` c) `Bitwise.and` 1
+            in
+                ( seed1, next <| Seed state incr )
+
+
+mul32 : Int -> Int -> Int
+mul32 a b =
+    -- multiply 32-bit integers without overflow
+    let
+        ah =
+            (a `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+
+        al =
+            a `Bitwise.and` 0xFFFF
+
+        bh =
+            (b `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+
+        bl =
+            b `Bitwise.and` 0xFFFF
+    in
+        (al * bl) + (((ah * bl + al * bh) `Bitwise.shiftLeft` 16) `Bitwise.shiftRightLogical` 0) |> Bitwise.or 0
+
+
+{-| Fast forward a seed the given number of steps, which may be negative (the
+seed will be "rewound"). This allows a single seed to serve as a random-access
+lookup table of random numbers. (To be sure no one else uses the seed, use
+`step independentSeed` to split off your own.)
+
+    diceRollTable : Int -> Int
+    diceRollTable i =
+      fastForward i mySeed |> step (int 1 6) |> fst
+-}
+fastForward : Int -> Seed -> Seed
+fastForward delta0 (Seed state0 incr) =
+    let
+        helper : Int -> Int -> Int -> Int -> Int -> Bool -> ( Int, Int )
+        helper accMult accPlus curMult curPlus delta repeat =
+            let
+                ( accMult', accPlus' ) =
+                    if delta `Bitwise.and` 1 == 1 then
+                        ( mul32 accMult curMult
+                        , Bitwise.shiftRightLogical (mul32 accPlus curMult + curPlus) 0
+                        )
                     else
-                        constant Nothing
+                        ( accMult, accPlus )
+
+                curPlus' =
+                    mul32 (curMult + 1) curPlus
+
+                curMult' =
+                    mul32 curMult curMult
+
+                newDelta =
+                    -- divide by 2
+                    delta `Bitwise.shiftRightLogical` 1
+            in
+                if newDelta == 0 then
+                    if delta0 < 0 && repeat then
+                        -- if passed a negative number, negate everything once
+                        helper accMult' accPlus' curMult' curPlus' -1 False
+                    else
+                        ( accMult', accPlus' )
+                else
+                    helper accMult' accPlus' curMult' curPlus' newDelta repeat
+
+        ( accMultFinal, accPlusFinal ) =
+            -- magic constant same as in next
+            helper 1 0 1664525 incr delta0 True
+    in
+        Seed (Bitwise.shiftRightLogical (mul32 accMultFinal state0 + accPlusFinal) 0) incr
 
 
-{-| Serialize a seed as a [JSON value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
+{-| Serialize a seed as a [JSON
+value](http://package.elm-lang.org/packages/elm-lang/core/latest/Json-Encode#Value)
 to be sent out a port, stored in local storage, and so on. The seed can be
 recovered using `fromJson`.
 
 Do not inspect or change the resulting JSON value.
 -}
 toJson : Seed -> Json.Encode.Value
-toJson (Seed (Int64 a b) (Int64 c d)) =
-    Json.Encode.list <| List.map Json.Encode.int [ a, b, c, d ]
+toJson (Seed state incr) =
+    Json.Encode.list [ Json.Encode.int state, Json.Encode.int incr ]
 
 
-{-| A JSON decoder that can recover seeds encoded using `toJson`.
+{-| A JSON decoder that can recover seeds encoded using `toJson`. Alternatively,
+pass an integer to create a seed using `initialSeed`.
 
     Json.Decode.decodeValue fromJson (toJson mySeed) == Ok mySeed
-
-If the JSON is an array of one or two integers, or just an integer, these will
-be used to initialize a new seed. This can be useful when you sometimes have an
-old seed and sometimes need a new one. The integers should be 32 random bits.
 -}
 fromJson : Json.Decode.Decoder Seed
 fromJson =
     Json.Decode.oneOf
-        [ Json.Decode.tuple4 (\a b c d -> Seed (Int64 a b) (Int64 c d))
-            Json.Decode.int
-            Json.Decode.int
-            Json.Decode.int
-            Json.Decode.int
-        , Json.Decode.tuple2 initialSeed2 Json.Decode.int Json.Decode.int
-        , Json.Decode.tuple1 initialSeed Json.Decode.int
+        [ Json.Decode.tuple2 Seed Json.Decode.int Json.Decode.int
         , Json.Decode.map initialSeed Json.Decode.int
         ]
-
-
-
----------------------------------------------------------------
--- Arithmetic helpers, because JS does not have 64-bit integers
----------------------------------------------------------------
-
-
-mul32 : Int -> Int -> Int
-mul32 a b =
-    let
-        ah =
-            (a >>> 16) & 0xFFFF
-
-        al =
-            a & 0xFFFF
-
-        bh =
-            (b >>> 16) & 0xFFFF
-
-        bl =
-            b & 0xFFFF
-    in
-        (al * bl) + (((ah * bl + al * bh) << 16) >>> 0) |> Bitwise.or 0
-
-
-mul64 : Int64 -> Int64 -> Int64
-mul64 (Int64 aHi aLo) (Int64 bHi bLo) =
-    let
-        -- this is taken from a mutable implementation, so there are a lot of primes.
-        c1 =
-            (aLo >>> 16) * (bLo & 0xFFFF) >>> 0
-
-        c0 =
-            (aLo & 0xFFFF) * (bLo >>> 16) >>> 0
-
-        lo =
-            ((aLo & 0xFFFF) * (bLo & 0xFFFF)) >>> 0
-
-        hi =
-            ((aLo >>> 16) * (bLo >>> 16)) + ((c0 >>> 16) + (c1 >>> 16)) >>> 0
-
-        c0' =
-            (c0 << 16) >>> 0
-
-        lo' =
-            (lo + c0') >>> 0
-
-        hi' =
-            if (lo' >>> 0) < (c0' >>> 0) then
-                (hi + 1) >>> 0
-            else
-                hi
-
-        c1' =
-            (c1 << 16) >>> 0
-
-        lo'' =
-            (lo' + c1') >>> 0
-
-        hi'' =
-            if (lo'' >>> 0) < (c1' >>> 0) then
-                (hi' + 1) >>> 0
-            else
-                hi'
-
-        hi''' =
-            (hi'' + mul32 aLo bHi) >>> 0
-
-        hi'''' =
-            (hi''' + mul32 aHi bLo) >>> 0
-    in
-        Int64 hi'''' lo''
-
-
-add64 : Int64 -> Int64 -> Int64
-add64 (Int64 aHi aLo) (Int64 bHi bLo) =
-    let
-        hi =
-            (aHi + bHi) >>> 0
-
-        lo =
-            (aLo + bLo) >>> 0
-
-        hi' =
-            if ((lo >>> 0) < (aLo >>> 0)) then
-                (hi + 1) `Bitwise.or` 0
-            else
-                hi
-    in
-        Int64 hi' lo

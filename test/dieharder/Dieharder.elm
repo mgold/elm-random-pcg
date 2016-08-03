@@ -24,7 +24,7 @@ body ints =
 core : Random.Seed -> (List Int, Random.Seed)
 core seed =
   let gen = Random.list n (Random.int bound.lo bound.hi)
-  in Random.generate gen seed
+  in Random.step gen seed
 
 run1 : Random.Seed -> IO Random.Seed
 run1 seed =

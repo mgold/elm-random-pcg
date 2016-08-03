@@ -3,7 +3,7 @@
 > "The generation of random numbers is too important to be left to chance." Robert R. Coveyou
 
 An alternate random number generator. You can `import Random.Pcg as Random` and everything will continue to
-work (except `generate` for use with `Cmd`s, and [elm-random-extra](http://package.elm-lang.org/packages/NoRedInk/elm-random-extra/latest/Random-Extra)).
+work (except [elm-random-extra](http://package.elm-lang.org/packages/NoRedInk/elm-random-extra/latest/Random-Extra)).
 This library offers two main improvements over core, without a large loss of performance (see `test/benchmark`):
 
 * **Better statistical properties.** If you use any seed less than 53668 and generate one bool, it will be `True` – if
@@ -23,9 +23,16 @@ secure**.
 
 Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).
 
-## Upgrading from 1.x
+## Changelog (major versions only)
+### 3.0.0
+* Change implementation to use the RXS-M-SH variant of PCG. Now much faster and not much worse statistically.
+* Remove `initialSeed2`, since there are now only 32 bits of state.
+* `Random.Pcg.Interop.fission` has been changed to a (core) generator of (PCG) seeds.
+* Add `generate` to match core 4.x API.
+
+### 2.0.0
 * Upgraded for 0.17.
-* `generate` renamed `step` to match core 4.0.0 API.
+* `generate` renamed `step` to match core 4.x API.
 * Module renamed `Random.Pcg` from `Random.PCG`.
 * `split` has been removed; use `independentSeed`.
 * `minInt` and `maxInt` values changed to match core.

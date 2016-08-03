@@ -1,4 +1,7 @@
 # Dieharder tests for Random.Pcg
+
+**These tests rely on a library that has not been update for 0.17.**
+
 The purpose of testing the random number generator is twofold: one, show the deficiencies in the core implementation;
 two, show the correctness of the Pcg implementation *in Elm*. Because we are testing the Elm implementation, not the Pcg
 algorithm, we must feed dieharder a file of already-generated random numbers. I've seen sources recommending 10 million
