@@ -10,17 +10,17 @@ numbers. The core library fails after as little as five seconds of scrutiny. Wou
 your [fuzz tests](http://package.elm-lang.org/packages/elm-community/elm-test/latest/) to such a flawed algorithm? See
 `test/dieharder` for more details.
 
-* **Useful features.** This library exports `constant` and `andMap`, which are conspicuously absent from core, along with
-other helpful functions for composing generators. Especially interesting is the `independentSeed` function which allows
-for lazy lists and isolated components to generate as much randomness as they need, when they need it. There is also a
-`fastForward` function that allows random access (rather than sequential access) into, effectively, an infinite array of
+* **Useful features.** This library exports `constant` and `andMap`, which are conspicuously absent from core, along
+with other helpful functions for composing generators. Particularly interesting is `independentSeed`, which allows for
+lazy lists and isolated components to generate as much randomness as they need, when they need it. There is also a
+`fastForward` function that allows indexed (rather than sequential) access into, effectively, an infinite array of
 random numbers. This can be used instead of reading a finite amount of random values into a large data structure.
 
 * **Performace.** This library will generate floats about 3.5 times faster than core, and ints do not regress. These
 figures stand to improve pending some optimizations to the compiler. You can see the [full
 benchmark results](https://github.com/mgold/elm-random-pcg/issues/5#issuecomment-236398261).
 
-* **Compatibility.** This library is a drop-in replacement forcore's Random module. Specifically, you
+* **Compatibility.** This library is a drop-in replacement for core's Random module. Specifically, you
 can replace `import Random` with `import Random.Pcg as Random` and everything will continue to work. The exception is third party
 libraries like [elm-random-extra](http://package.elm-lang.org/packages/NoRedInk/elm-random-extra/latest/Random-Extra));
 the long-term resolution is to pull this library into core.
