@@ -598,6 +598,7 @@ Do not pass a value less then one to this function.
 
     flippedHeads = oneIn 2
     rolled6 = oneIn 6
+    criticalHit = oneIn 20
 -}
 oneIn : Int -> Generator Bool
 oneIn n =
