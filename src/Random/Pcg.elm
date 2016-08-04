@@ -1,4 +1,4 @@
-module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, step, generate, initialSeed, independentSeed, fastForward, toJson, fromJson)
+module Random.Pcg exposing (Generator, Seed, bool, int, float, oneIn, sample, pair, list, maybe, choice, choices, frequency, map, map2, map3, map4, map5, andMap, filter, constant, andThen, minInt, maxInt, mapOverList, foldOverList, scanOverList, step, generate, initialSeed, independentSeed, fastForward, toJson, fromJson)
 
 {-| Generate psuedo-random numbers and values, by constructing
 [generators](#Generator) for them. There are a bunch of basic generators like
@@ -24,6 +24,9 @@ and is not cryptographically secure.
 
 # Custom Generators
 @docs constant, map, map2, map3, map4, map5, andMap, andThen, filter
+
+# Working With Lists
+@docs mapOverList, foldOverList, scanOverList
 
 # Working With Seeds
 @docs Seed, independentSeed, fastForward, toJson, fromJson
@@ -703,6 +706,46 @@ maybe genBool genA =
                     map Just genA
                 else
                     constant Nothing
+
+
+{-| Like `List.map`, except the function can use randomness to transform its
+input.
+-}
+mapOverList : (a -> Generator b) -> List a -> Generator (List b)
+mapOverList f xs =
+    case xs of
+        [] ->
+            constant []
+
+        x :: xs ->
+            map2 (::) (f x) (mapOverList f xs)
+
+
+{-| Like `List.foldl`, except the function can use randomness to transform its
+input and accumulator.
+-}
+foldOverList : (a -> b -> Generator b) -> b -> List a -> Generator b
+foldOverList f acc xs =
+    case xs of
+        [] ->
+            constant acc
+
+        x :: xs ->
+            f x acc `andThen` \acc' -> foldOverList f acc' xs
+
+
+{-| Like `List.scanl`, except the function can use randomness to transform its
+input and accumulator.
+-}
+scanOverList : (a -> b -> Generator b) -> b -> List a -> Generator (List b)
+scanOverList f acc xs =
+    case xs of
+        [] ->
+            constant [ acc ]
+
+        x :: xs ->
+            f x acc
+                `andThen` (\acc' -> map (\tail -> acc' :: tail) (scanOverList f acc' xs))
 
 
 {-| A generator that produces a seed that is independent of any other seed in
