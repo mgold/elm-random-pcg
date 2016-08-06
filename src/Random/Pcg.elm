@@ -9,6 +9,8 @@ You run a `Generator` by calling the [`step`](#step) function, which
 also takes a random [`Seed`](#Seed), and passes back a new seed. You should
 never use the same seed twice because you will get the same result! If you need
 random values over time, you should store the most recent seed in your model.
+Alternatively, use [`generate`](#generate) to obtain random values from the Elm
+runtime.
 
 This is an implementation of [PCG](http://www.pcg-random.org/) by M. E. O'Neil,
 and is not cryptographically secure.
