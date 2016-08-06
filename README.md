@@ -4,7 +4,7 @@
 
 An alternate random number generator built around four principles:
 
-* **Statistical Quality.** If you use any seed less than 53668 and generate one bool, it will be `True` – if you're
+* **Statistical Quality.** If you use any seed less than 53,668 and generate one bool, it will be `True` – if you're
 using core's `Random` module. More sophisticated statistical tests spot patterns in the "random" numbers almost
 immediately. Would you want to trust the accuracy of your [fuzz
 tests](http://package.elm-lang.org/packages/elm-community/elm-test/latest/) to such a flawed algorithm? This library
