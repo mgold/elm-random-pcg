@@ -222,7 +222,7 @@ int a b =
             in
                 -- fast path for power of 2
                 if ((range `Bitwise.and` (range - 1)) == 0) then
-                    ( peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0, next seed0 )
+                    ( (peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0) + lo, next seed0 )
                 else
                     let
                         threshhold =
