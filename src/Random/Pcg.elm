@@ -160,7 +160,7 @@ initialSeed x =
             next (Seed 0 1013904223)
 
         state2 =
-            state1 + x
+            Bitwise.shiftRightLogical (state1 + x) 0
     in
         next (Seed state2 incr)
 
