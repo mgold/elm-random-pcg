@@ -573,25 +573,30 @@ andThen (Generator generateA) callback =
       filter (\i -> i % 2 == 0) (int minInt maxInt)
 
 **Warning:** If the predicate is unsatisfiable, the generator will not terminate, your
-application will crash with a stack overflow, and you will be sad. You should
+application will hang with an infinite loop, and you will be sad. You should
 also avoid predicates that are merely very difficult to satisfy.
 
     badCrashingGenerator =
       filter (\_ -> False) anotherGenerator
 
-    likelyCrashingGenerator =
+    verySlowGenerator =
       filter (\i -> i % 2000 == 0) (int minInt maxInt)
 -}
 filter : (a -> Bool) -> Generator a -> Generator a
 filter predicate generator =
-    generator
-        `andThen`
-            (\a ->
-                if predicate a then
-                    constant a
-                else
-                    filter predicate generator
-            )
+    Generator (retry generator predicate)
+
+
+retry : Generator a -> (a -> Bool) -> Seed -> ( a, Seed )
+retry generator predicate seed =
+    let
+        ( candidate, newSeed ) =
+            step generator seed
+    in
+        if predicate candidate then
+            ( candidate, newSeed )
+        else
+            retry generator predicate newSeed
 
 
 {-| Produce `True` one-in-n times on average.
