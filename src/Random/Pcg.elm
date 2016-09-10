@@ -757,7 +757,7 @@ independentSeed =
                 Finally step it once before use.
                 --}
                 incr =
-                    (b `Bitwise.xor` c) `Bitwise.and` 1
+                    (b `Bitwise.xor` c) `Bitwise.or` 1
             in
                 ( seed1, next <| Seed state incr )
 
