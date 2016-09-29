@@ -1,5 +1,5 @@
 {
-    "version": "3.0.3",
+    "version": "3.0.4",
     "summary": "A faster, more featureful, statistically better, & compatible random generator",
     "repository": "https://github.com/mgold/elm-random-pcg.git",
     "license": "BSD3",
