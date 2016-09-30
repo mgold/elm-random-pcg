@@ -35,6 +35,7 @@ and is not cryptographically secure.
 -}
 
 import Bitwise
+import NewBitwise as Bitwise
 import Json.Encode
 import Json.Decode
 import Task
@@ -160,7 +161,7 @@ initialSeed x =
             next (Seed 0 1013904223)
 
         state2 =
-            Bitwise.shiftRightLogical (state1 + x) 0
+            state1 + x |> Bitwise.logicalRightShift 0
     in
         next (Seed state2 incr)
 
@@ -174,7 +175,7 @@ inlined for performance.
 
 next : Seed -> Seed
 next (Seed state0 incr) =
-    Seed (Bitwise.shiftRightLogical ((state0 * 1664525) + incr) 0) incr
+    Seed ((state0 * 1664525) + incr |> Bitwise.logicalRightShift 0) incr
 
 
 
@@ -187,9 +188,10 @@ peel (Seed state _) =
     -- and line 184 of pcg_variants.h in the 0.94 C implementation
     let
         word =
-            ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
+            ((state |> Bitwise.logicalRightShift ((state |> Bitwise.logicalRightShift 28) + 4)) |> Bitwise.xor state) * 277803737
     in
-        Bitwise.shiftRightLogical (Bitwise.xor (word `Bitwise.shiftRightLogical` 22) word) 0
+        Bitwise.xor (word |> Bitwise.logicalRightShift 22) word
+            |> Bitwise.logicalRightShift 0
 
 
 {-| Generate 32-bit integers in a given range, inclusive.
@@ -221,13 +223,14 @@ int a b =
                     hi - lo + 1
             in
                 -- fast path for power of 2
-                if ((range `Bitwise.and` (range - 1)) == 0) then
-                    ( (peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0) + lo, next seed0 )
+                if (range |> Bitwise.and (range - 1)) == 0 then
+                    ( (peel seed0 |> Bitwise.and (range - 1) |> Bitwise.logicalRightShift 0) + lo, next seed0 )
                 else
                     let
                         threshhold =
                             -- essentially: period % max
-                            ((-range `Bitwise.shiftRightLogical` 0) `rem` range) `Bitwise.shiftRightLogical` 0
+                            -- 0.18 TODO: the `rem` operator will be changing, also on line 248
+                            ((-range |> Bitwise.logicalRightShift 0) `rem` range) |> Bitwise.logicalRightShift 0
 
                         accountForBias : Seed -> ( Int, Seed )
                         accountForBias seed =
@@ -279,10 +282,10 @@ float min max =
 
                 -- Get a uniformly distributed IEEE-754 double between 0.0 and 1.0
                 hi =
-                    toFloat (n0 `Bitwise.and` 0x03FFFFFF) * 1.0
+                    toFloat (n0 |> Bitwise.and 0x03FFFFFF) * 1.0
 
                 lo =
-                    toFloat (n1 `Bitwise.and` 0x07FFFFFF) * 1.0
+                    toFloat (n1 |> Bitwise.and 0x07FFFFFF) * 1.0
 
                 val =
                     ((hi * bit27) + lo) / bit53
@@ -757,7 +760,7 @@ independentSeed =
                 Finally step it once before use.
                 --}
                 incr =
-                    (b `Bitwise.xor` c) `Bitwise.or` 1
+                    (Bitwise.xor b c) |> Bitwise.or 1
             in
                 ( seed1, next <| Seed state incr )
 
@@ -767,18 +770,19 @@ mul32 a b =
     -- multiply 32-bit integers without overflow
     let
         ah =
-            (a `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+            (a |> Bitwise.logicalRightShift 16) |> Bitwise.and 0xFFFF
 
         al =
             a `Bitwise.and` 0xFFFF
 
         bh =
-            (b `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+            (b |> Bitwise.shiftRightLogical 16) |> Bitwise.and 0xFFFF
 
         bl =
-            b `Bitwise.and` 0xFFFF
+            Bitwise.and b 0xFFFF
     in
-        (al * bl) + (((ah * bl + al * bh) `Bitwise.shiftLeft` 16) `Bitwise.shiftRightLogical` 0) |> Bitwise.or 0
+        -- The Bitwise.or could probably be replaced with logicalRightShift but I'm not positive?
+        (al * bl) + (((ah * bl + al * bh) |> Bitwise.leftShift 16) |> Bitwise.logicalRightShift 0) |> Bitwise.or 0
 
 
 {-| Fast forward a seed the given number of steps, which may be negative (the
@@ -797,9 +801,9 @@ fastForward delta0 (Seed state0 incr) =
         helper accMult accPlus curMult curPlus delta repeat =
             let
                 ( accMult', accPlus' ) =
-                    if delta `Bitwise.and` 1 == 1 then
+                    if Bitwise.and delta 1 == 1 then
                         ( mul32 accMult curMult
-                        , Bitwise.shiftRightLogical (mul32 accPlus curMult + curPlus) 0
+                        , mul32 accPlus curMult + curPlus |> Bitwise.logicalRightShift 0
                         )
                     else
                         ( accMult, accPlus )
@@ -812,7 +816,7 @@ fastForward delta0 (Seed state0 incr) =
 
                 newDelta =
                     -- divide by 2
-                    delta `Bitwise.shiftRightLogical` 1
+                    delta |> Bitwise.logicalRightShift 1
             in
                 if newDelta == 0 then
                     if delta0 < 0 && repeat then
@@ -827,7 +831,7 @@ fastForward delta0 (Seed state0 incr) =
             -- magic constant same as in next
             helper 1 0 1664525 incr delta0 True
     in
-        Seed (Bitwise.shiftRightLogical (mul32 accMultFinal state0 + accPlusFinal) 0) incr
+        Seed (mul32 accMultFinal state0 + accPlusFinal |> Bitwise.logicalRightShift 0) incr
 
 
 {-| Serialize a seed as a [JSON
