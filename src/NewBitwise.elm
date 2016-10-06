@@ -3,13 +3,13 @@ module NewBitwise exposing (..)
 import Bitwise
 
 
-leftShift =
+shiftLeftBy =
     flip Bitwise.shiftLeft
 
 
-rightShift =
+shiftRightBy =
     flip Bitwise.shiftRight
 
 
-logicalRightShift =
+shiftRightZfBy =
     flip Bitwise.shiftRightLogical

@@ -161,7 +161,7 @@ initialSeed x =
             next (Seed 0 1013904223)
 
         state2 =
-            state1 + x |> Bitwise.logicalRightShift 0
+            state1 + x |> Bitwise.shiftRightZfBy 0
     in
         next (Seed state2 incr)
 
@@ -175,7 +175,7 @@ inlined for performance.
 
 next : Seed -> Seed
 next (Seed state0 incr) =
-    Seed ((state0 * 1664525) + incr |> Bitwise.logicalRightShift 0) incr
+    Seed ((state0 * 1664525) + incr |> Bitwise.shiftRightZfBy 0) incr
 
 
 
@@ -188,10 +188,10 @@ peel (Seed state _) =
     -- and line 184 of pcg_variants.h in the 0.94 C implementation
     let
         word =
-            ((state |> Bitwise.logicalRightShift ((state |> Bitwise.logicalRightShift 28) + 4)) |> Bitwise.xor state) * 277803737
+            ((state |> Bitwise.shiftRightZfBy ((state |> Bitwise.shiftRightZfBy 28) + 4)) |> Bitwise.xor state) * 277803737
     in
-        Bitwise.xor (word |> Bitwise.logicalRightShift 22) word
-            |> Bitwise.logicalRightShift 0
+        Bitwise.xor (word |> Bitwise.shiftRightZfBy 22) word
+            |> Bitwise.shiftRightZfBy 0
 
 
 {-| Generate 32-bit integers in a given range, inclusive.
@@ -224,13 +224,13 @@ int a b =
             in
                 -- fast path for power of 2
                 if (range |> Bitwise.and (range - 1)) == 0 then
-                    ( (peel seed0 |> Bitwise.and (range - 1) |> Bitwise.logicalRightShift 0) + lo, next seed0 )
+                    ( (peel seed0 |> Bitwise.and (range - 1) |> Bitwise.shiftRightZfBy 0) + lo, next seed0 )
                 else
                     let
                         threshhold =
                             -- essentially: period % max
                             -- 0.18 TODO: the `rem` operator will be changing, also on line 248
-                            ((-range |> Bitwise.logicalRightShift 0) `rem` range) |> Bitwise.logicalRightShift 0
+                            ((-range |> Bitwise.shiftRightZfBy 0) `rem` range) |> Bitwise.shiftRightZfBy 0
 
                         accountForBias : Seed -> ( Int, Seed )
                         accountForBias seed =
@@ -770,7 +770,7 @@ mul32 a b =
     -- multiply 32-bit integers without overflow
     let
         ah =
-            (a |> Bitwise.logicalRightShift 16) |> Bitwise.and 0xFFFF
+            (a |> Bitwise.shiftRightZfBy 16) |> Bitwise.and 0xFFFF
 
         al =
             a `Bitwise.and` 0xFFFF
@@ -781,8 +781,8 @@ mul32 a b =
         bl =
             Bitwise.and b 0xFFFF
     in
-        -- The Bitwise.or could probably be replaced with logicalRightShift but I'm not positive?
-        (al * bl) + (((ah * bl + al * bh) |> Bitwise.leftShift 16) |> Bitwise.logicalRightShift 0) |> Bitwise.or 0
+        -- The Bitwise.or could probably be replaced with shiftRightZfBy but I'm not positive?
+        (al * bl) + (((ah * bl + al * bh) |> Bitwise.shiftLeftBy 16) |> Bitwise.shiftRightZfBy 0) |> Bitwise.or 0
 
 
 {-| Fast forward a seed the given number of steps, which may be negative (the
@@ -803,7 +803,7 @@ fastForward delta0 (Seed state0 incr) =
                 ( accMult', accPlus' ) =
                     if Bitwise.and delta 1 == 1 then
                         ( mul32 accMult curMult
-                        , mul32 accPlus curMult + curPlus |> Bitwise.logicalRightShift 0
+                        , mul32 accPlus curMult + curPlus |> Bitwise.shiftRightZfBy 0
                         )
                     else
                         ( accMult, accPlus )
@@ -816,7 +816,7 @@ fastForward delta0 (Seed state0 incr) =
 
                 newDelta =
                     -- divide by 2
-                    delta |> Bitwise.logicalRightShift 1
+                    delta |> Bitwise.shiftRightZfBy 1
             in
                 if newDelta == 0 then
                     if delta0 < 0 && repeat then
@@ -831,7 +831,7 @@ fastForward delta0 (Seed state0 incr) =
             -- magic constant same as in next
             helper 1 0 1664525 incr delta0 True
     in
-        Seed (mul32 accMultFinal state0 + accPlusFinal |> Bitwise.logicalRightShift 0) incr
+        Seed (mul32 accMultFinal state0 + accPlusFinal |> Bitwise.shiftRightZfBy 0) incr
 
 
 {-| Serialize a seed as a [JSON
