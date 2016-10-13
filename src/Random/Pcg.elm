@@ -35,7 +35,6 @@ and is not cryptographically secure.
 -}
 
 import Bitwise
-import NewBitwise as Bitwise
 import Json.Encode
 import Json.Decode
 import Task
@@ -229,8 +228,7 @@ int a b =
                     let
                         threshhold =
                             -- essentially: period % max
-                            -- 0.18 TODO: the `rem` operator will be changing, also on line 248
-                            ((-range |> Bitwise.shiftRightZfBy 0) `rem` range) |> Bitwise.shiftRightZfBy 0
+                            rem (-range |> Bitwise.shiftRightZfBy 0) range |> Bitwise.shiftRightZfBy 0
 
                         accountForBias : Seed -> ( Int, Seed )
                         accountForBias seed =
@@ -245,7 +243,7 @@ int a b =
                                     -- in practice this recurses almost never
                                     accountForBias seedN
                                 else
-                                    ( x `rem` range + lo, seedN )
+                                    ( rem x (range + lo), seedN )
                     in
                         accountForBias seed0
 
@@ -531,9 +529,6 @@ andMap =
 {-| Chain random operations by providing a callback that accepts a
 randomly-generated value. The random value can be used to drive more randomness.
 
-The argument order matches `andThen`s from core, but requires the use of `flip`
-to match `map` or work with `|>` chains.
-
 This example shows how we can use `andThen` to generate a list of random values
 *and* random length. Then we use `map` to apply a stateless function to that
 list. Assume we already have `genName : Generator String` defined.
@@ -541,7 +536,7 @@ list. Assume we already have `genName : Generator String` defined.
     authors : Generator String
     authors =
       int 1 5 -- number of authors
-      |> (flip andThen) (\i -> list i genName)
+      |> andThen (\i -> list i genName)
       |> map (\ns ->
         case ns of
           [n] ->
@@ -555,8 +550,8 @@ list. Assume we already have `genName : Generator String` defined.
 If you find yourself calling `constant` in every branch of the callback, you can
 probably use `map` instead.
 -}
-andThen : Generator a -> (a -> Generator b) -> Generator b
-andThen (Generator generateA) callback =
+andThen : (a -> Generator b) -> Generator a -> Generator b
+andThen callback (Generator generateA) =
     Generator <|
         \seed ->
             let
@@ -698,7 +693,7 @@ frequency pairs =
                 _ ->
                     Debug.crash "Empty list passed to Random.Pcg.frequency!"
     in
-        float 0 total `andThen` pick pairs
+        float 0 total |> andThen (pick pairs)
 
 
 {-| Produce `Just` a value on `True`, and `Nothing` on `False`.
@@ -708,12 +703,13 @@ You can use `bool` or `oneIn n` for the first argument.
 maybe : Generator Bool -> Generator a -> Generator (Maybe a)
 maybe genBool genA =
     genBool
-        `andThen`
-            \b ->
+        |> andThen
+            (\b ->
                 if b then
                     map Just genA
                 else
                     constant Nothing
+            )
 
 
 {-| A generator that produces a seed that is independent of any other seed in
@@ -773,10 +769,10 @@ mul32 a b =
             (a |> Bitwise.shiftRightZfBy 16) |> Bitwise.and 0xFFFF
 
         al =
-            a `Bitwise.and` 0xFFFF
+            Bitwise.and a 0xFFFF
 
         bh =
-            (b |> Bitwise.shiftRightLogical 16) |> Bitwise.and 0xFFFF
+            (b |> Bitwise.shiftRightZfBy 16) |> Bitwise.and 0xFFFF
 
         bl =
             Bitwise.and b 0xFFFF
@@ -800,7 +796,7 @@ fastForward delta0 (Seed state0 incr) =
         helper : Int -> Int -> Int -> Int -> Int -> Bool -> ( Int, Int )
         helper accMult accPlus curMult curPlus delta repeat =
             let
-                ( accMult', accPlus' ) =
+                ( accMult_, accPlus_ ) =
                     if Bitwise.and delta 1 == 1 then
                         ( mul32 accMult curMult
                         , mul32 accPlus curMult + curPlus |> Bitwise.shiftRightZfBy 0
@@ -808,10 +804,10 @@ fastForward delta0 (Seed state0 incr) =
                     else
                         ( accMult, accPlus )
 
-                curPlus' =
+                curPlus_ =
                     mul32 (curMult + 1) curPlus
 
-                curMult' =
+                curMult_ =
                     mul32 curMult curMult
 
                 newDelta =
@@ -821,11 +817,11 @@ fastForward delta0 (Seed state0 incr) =
                 if newDelta == 0 then
                     if delta0 < 0 && repeat then
                         -- if passed a negative number, negate everything once
-                        helper accMult' accPlus' curMult' curPlus' -1 False
+                        helper accMult_ accPlus_ curMult_ curPlus_ -1 False
                     else
-                        ( accMult', accPlus' )
+                        ( accMult_, accPlus_ )
                 else
-                    helper accMult' accPlus' curMult' curPlus' newDelta repeat
+                    helper accMult_ accPlus_ curMult_ curPlus_ newDelta repeat
 
         ( accMultFinal, accPlusFinal ) =
             -- magic constant same as in next
@@ -854,6 +850,15 @@ pass an integer to create a seed using `initialSeed`.
 fromJson : Json.Decode.Decoder Seed
 fromJson =
     Json.Decode.oneOf
-        [ Json.Decode.tuple2 Seed Json.Decode.int Json.Decode.int
+        [ Json.Decode.list Json.Decode.int
+            |> Json.Decode.andThen
+                (\ints ->
+                    case ints of
+                        [ x, y ] ->
+                            Json.Decode.succeed (Seed x y)
+
+                        _ ->
+                            Json.Decode.fail ""
+                )
         , Json.Decode.map initialSeed Json.Decode.int
         ]
