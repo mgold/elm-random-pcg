@@ -105,12 +105,7 @@ generate : (a -> msg) -> Generator a -> Cmd msg
 generate toMsg generator =
     Time.now
         |> Task.map (round >> initialSeed >> step generator >> fst)
-        |> Task.perform never toMsg
-
-
-never : Never -> a
-never a =
-    never a
+        |> Task.perform toMsg
 
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
