@@ -845,15 +845,8 @@ pass an integer to create a seed using `initialSeed`.
 fromJson : Json.Decode.Decoder Seed
 fromJson =
     Json.Decode.oneOf
-        [ Json.Decode.list Json.Decode.int
-            |> Json.Decode.andThen
-                (\ints ->
-                    case ints of
-                        [ x, y ] ->
-                            Json.Decode.succeed (Seed x y)
-
-                        _ ->
-                            Json.Decode.fail ""
-                )
+        [ Json.Decode.map2 Seed
+            (Json.Decode.index 0 Json.Decode.int)
+            (Json.Decode.index 1 Json.Decode.int)
         , Json.Decode.map initialSeed Json.Decode.int
         ]
