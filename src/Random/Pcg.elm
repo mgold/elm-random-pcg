@@ -38,6 +38,7 @@ import Bitwise
 import Json.Encode
 import Json.Decode
 import Task
+import Tuple
 import Time
 
 
@@ -104,7 +105,7 @@ to set up anyway.
 generate : (a -> msg) -> Generator a -> Cmd msg
 generate toMsg generator =
     Time.now
-        |> Task.map (round >> initialSeed >> step generator >> fst)
+        |> Task.map (round >> initialSeed >> step generator >> Tuple.first)
         |> Task.perform toMsg
 
 
@@ -675,7 +676,7 @@ frequency : List ( Float, Generator a ) -> Generator a
 frequency pairs =
     let
         total =
-            List.sum <| List.map (fst >> abs) pairs
+            List.sum <| List.map (Tuple.first >> abs) pairs
 
         pick choices n =
             case choices of
@@ -783,7 +784,7 @@ lookup table of random numbers. (To be sure no one else uses the seed, use
 
     diceRollTable : Int -> Int
     diceRollTable i =
-      fastForward i mySeed |> step (int 1 6) |> fst
+      fastForward i mySeed |> step (int 1 6) |> Tuple.first
 -}
 fastForward : Int -> Seed -> Seed
 fastForward delta0 (Seed state0 incr) =
