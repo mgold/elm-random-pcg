@@ -239,7 +239,7 @@ int a b =
                                     -- in practice this recurses almost never
                                     accountForBias seedN
                                 else
-                                    ( rem x (range + lo), seedN )
+                                    ( rem x range + lo, seedN )
                     in
                         accountForBias seed0
 
