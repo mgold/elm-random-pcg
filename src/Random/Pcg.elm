@@ -38,6 +38,7 @@ import Bitwise
 import Json.Encode
 import Json.Decode
 import Task
+import Tuple
 import Time
 
 
@@ -104,13 +105,8 @@ to set up anyway.
 generate : (a -> msg) -> Generator a -> Cmd msg
 generate toMsg generator =
     Time.now
-        |> Task.map (round >> initialSeed >> step generator >> fst)
-        |> Task.perform never toMsg
-
-
-never : Never -> a
-never a =
-    never a
+        |> Task.map (round >> initialSeed >> step generator >> Tuple.first)
+        |> Task.perform toMsg
 
 
 {-| A `Seed` is the source of randomness in the whole system. It hides the
@@ -160,7 +156,7 @@ initialSeed x =
             next (Seed 0 1013904223)
 
         state2 =
-            Bitwise.shiftRightLogical (state1 + x) 0
+            state1 + x |> Bitwise.shiftRightZfBy 0
     in
         next (Seed state2 incr)
 
@@ -174,7 +170,7 @@ inlined for performance.
 
 next : Seed -> Seed
 next (Seed state0 incr) =
-    Seed (Bitwise.shiftRightLogical ((state0 * 1664525) + incr) 0) incr
+    Seed ((state0 * 1664525) + incr |> Bitwise.shiftRightZfBy 0) incr
 
 
 
@@ -187,9 +183,10 @@ peel (Seed state _) =
     -- and line 184 of pcg_variants.h in the 0.94 C implementation
     let
         word =
-            ((state `Bitwise.shiftRightLogical` ((state `Bitwise.shiftRightLogical` 28) + 4)) `Bitwise.xor` state) * 277803737
+            ((state |> Bitwise.shiftRightZfBy ((state |> Bitwise.shiftRightZfBy 28) + 4)) |> Bitwise.xor state) * 277803737
     in
-        Bitwise.shiftRightLogical (Bitwise.xor (word `Bitwise.shiftRightLogical` 22) word) 0
+        Bitwise.xor (word |> Bitwise.shiftRightZfBy 22) word
+            |> Bitwise.shiftRightZfBy 0
 
 
 {-| Generate 32-bit integers in a given range, inclusive.
@@ -221,13 +218,13 @@ int a b =
                     hi - lo + 1
             in
                 -- fast path for power of 2
-                if ((range `Bitwise.and` (range - 1)) == 0) then
-                    ( (peel seed0 `Bitwise.and` (range - 1) `Bitwise.shiftRightLogical` 0) + lo, next seed0 )
+                if (range |> Bitwise.and (range - 1)) == 0 then
+                    ( (peel seed0 |> Bitwise.and (range - 1) |> Bitwise.shiftRightZfBy 0) + lo, next seed0 )
                 else
                     let
                         threshhold =
                             -- essentially: period % max
-                            ((-range `Bitwise.shiftRightLogical` 0) `rem` range) `Bitwise.shiftRightLogical` 0
+                            rem (-range |> Bitwise.shiftRightZfBy 0) range |> Bitwise.shiftRightZfBy 0
 
                         accountForBias : Seed -> ( Int, Seed )
                         accountForBias seed =
@@ -242,7 +239,7 @@ int a b =
                                     -- in practice this recurses almost never
                                     accountForBias seedN
                                 else
-                                    ( x `rem` range + lo, seedN )
+                                    ( rem x range + lo, seedN )
                     in
                         accountForBias seed0
 
@@ -279,10 +276,10 @@ float min max =
 
                 -- Get a uniformly distributed IEEE-754 double between 0.0 and 1.0
                 hi =
-                    toFloat (n0 `Bitwise.and` 0x03FFFFFF) * 1.0
+                    toFloat (n0 |> Bitwise.and 0x03FFFFFF) * 1.0
 
                 lo =
-                    toFloat (n1 `Bitwise.and` 0x07FFFFFF) * 1.0
+                    toFloat (n1 |> Bitwise.and 0x07FFFFFF) * 1.0
 
                 val =
                     ((hi * bit27) + lo) / bit53
@@ -528,9 +525,6 @@ andMap =
 {-| Chain random operations by providing a callback that accepts a
 randomly-generated value. The random value can be used to drive more randomness.
 
-The argument order matches `andThen`s from core, but requires the use of `flip`
-to match `map` or work with `|>` chains.
-
 This example shows how we can use `andThen` to generate a list of random values
 *and* random length. Then we use `map` to apply a stateless function to that
 list. Assume we already have `genName : Generator String` defined.
@@ -538,7 +532,7 @@ list. Assume we already have `genName : Generator String` defined.
     authors : Generator String
     authors =
       int 1 5 -- number of authors
-      |> (flip andThen) (\i -> list i genName)
+      |> andThen (\i -> list i genName)
       |> map (\ns ->
         case ns of
           [n] ->
@@ -552,8 +546,8 @@ list. Assume we already have `genName : Generator String` defined.
 If you find yourself calling `constant` in every branch of the callback, you can
 probably use `map` instead.
 -}
-andThen : Generator a -> (a -> Generator b) -> Generator b
-andThen (Generator generateA) callback =
+andThen : (a -> Generator b) -> Generator a -> Generator b
+andThen callback (Generator generateA) =
     Generator <|
         \seed ->
             let
@@ -682,7 +676,7 @@ frequency : List ( Float, Generator a ) -> Generator a
 frequency pairs =
     let
         total =
-            List.sum <| List.map (fst >> abs) pairs
+            List.sum <| List.map (Tuple.first >> abs) pairs
 
         pick choices n =
             case choices of
@@ -695,7 +689,7 @@ frequency pairs =
                 _ ->
                     Debug.crash "Empty list passed to Random.Pcg.frequency!"
     in
-        float 0 total `andThen` pick pairs
+        float 0 total |> andThen (pick pairs)
 
 
 {-| Produce `Just` a value on `True`, and `Nothing` on `False`.
@@ -705,12 +699,13 @@ You can use `bool` or `oneIn n` for the first argument.
 maybe : Generator Bool -> Generator a -> Generator (Maybe a)
 maybe genBool genA =
     genBool
-        `andThen`
-            \b ->
+        |> andThen
+            (\b ->
                 if b then
                     map Just genA
                 else
                     constant Nothing
+            )
 
 
 {-| A generator that produces a seed that is independent of any other seed in
@@ -757,7 +752,7 @@ independentSeed =
                 Finally step it once before use.
                 --}
                 incr =
-                    (b `Bitwise.xor` c) `Bitwise.or` 1
+                    (Bitwise.xor b c) |> Bitwise.or 1
             in
                 ( seed1, next <| Seed state incr )
 
@@ -767,18 +762,19 @@ mul32 a b =
     -- multiply 32-bit integers without overflow
     let
         ah =
-            (a `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+            (a |> Bitwise.shiftRightZfBy 16) |> Bitwise.and 0xFFFF
 
         al =
-            a `Bitwise.and` 0xFFFF
+            Bitwise.and a 0xFFFF
 
         bh =
-            (b `Bitwise.shiftRightLogical` 16) `Bitwise.and` 0xFFFF
+            (b |> Bitwise.shiftRightZfBy 16) |> Bitwise.and 0xFFFF
 
         bl =
-            b `Bitwise.and` 0xFFFF
+            Bitwise.and b 0xFFFF
     in
-        (al * bl) + (((ah * bl + al * bh) `Bitwise.shiftLeft` 16) `Bitwise.shiftRightLogical` 0) |> Bitwise.or 0
+        -- The Bitwise.or could probably be replaced with shiftRightZfBy but I'm not positive?
+        (al * bl) + (((ah * bl + al * bh) |> Bitwise.shiftLeftBy 16) |> Bitwise.shiftRightZfBy 0) |> Bitwise.or 0
 
 
 {-| Fast forward a seed the given number of steps, which may be negative (the
@@ -788,7 +784,7 @@ lookup table of random numbers. (To be sure no one else uses the seed, use
 
     diceRollTable : Int -> Int
     diceRollTable i =
-      fastForward i mySeed |> step (int 1 6) |> fst
+      fastForward i mySeed |> step (int 1 6) |> Tuple.first
 -}
 fastForward : Int -> Seed -> Seed
 fastForward delta0 (Seed state0 incr) =
@@ -796,38 +792,38 @@ fastForward delta0 (Seed state0 incr) =
         helper : Int -> Int -> Int -> Int -> Int -> Bool -> ( Int, Int )
         helper accMult accPlus curMult curPlus delta repeat =
             let
-                ( accMult', accPlus' ) =
-                    if delta `Bitwise.and` 1 == 1 then
+                ( accMult_, accPlus_ ) =
+                    if Bitwise.and delta 1 == 1 then
                         ( mul32 accMult curMult
-                        , Bitwise.shiftRightLogical (mul32 accPlus curMult + curPlus) 0
+                        , mul32 accPlus curMult + curPlus |> Bitwise.shiftRightZfBy 0
                         )
                     else
                         ( accMult, accPlus )
 
-                curPlus' =
+                curPlus_ =
                     mul32 (curMult + 1) curPlus
 
-                curMult' =
+                curMult_ =
                     mul32 curMult curMult
 
                 newDelta =
                     -- divide by 2
-                    delta `Bitwise.shiftRightLogical` 1
+                    delta |> Bitwise.shiftRightZfBy 1
             in
                 if newDelta == 0 then
                     if delta0 < 0 && repeat then
                         -- if passed a negative number, negate everything once
-                        helper accMult' accPlus' curMult' curPlus' -1 False
+                        helper accMult_ accPlus_ curMult_ curPlus_ -1 False
                     else
-                        ( accMult', accPlus' )
+                        ( accMult_, accPlus_ )
                 else
-                    helper accMult' accPlus' curMult' curPlus' newDelta repeat
+                    helper accMult_ accPlus_ curMult_ curPlus_ newDelta repeat
 
         ( accMultFinal, accPlusFinal ) =
             -- magic constant same as in next
             helper 1 0 1664525 incr delta0 True
     in
-        Seed (Bitwise.shiftRightLogical (mul32 accMultFinal state0 + accPlusFinal) 0) incr
+        Seed (mul32 accMultFinal state0 + accPlusFinal |> Bitwise.shiftRightZfBy 0) incr
 
 
 {-| Serialize a seed as a [JSON
@@ -850,6 +846,8 @@ pass an integer to create a seed using `initialSeed`.
 fromJson : Json.Decode.Decoder Seed
 fromJson =
     Json.Decode.oneOf
-        [ Json.Decode.tuple2 Seed Json.Decode.int Json.Decode.int
+        [ Json.Decode.map2 Seed
+            (Json.Decode.index 0 Json.Decode.int)
+            (Json.Decode.index 1 Json.Decode.int)
         , Json.Decode.map initialSeed Json.Decode.int
         ]

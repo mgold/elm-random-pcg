@@ -29,6 +29,10 @@ secure**.
 Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).
 
 ## Changelog (major versions only)
+### 4.0.0
+* Upgraded for 0.18.
+* Argument order of `andThen` flipped.
+
 ### 3.0.0
 * Change implementation to use the RXS-M-SH variant of PCG. Now much faster and not much worse statistically.
 * Remove `initialSeed2`, since there are now only 32 bits of state.
