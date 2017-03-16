@@ -29,6 +29,9 @@ secure**.
 Please report bugs, feature requests, and other issues [on GitHub](https://github.com/mgold/elm-random-pcg/issues/new).
 
 ## Changelog (major versions only)
+### 5.0.0
+* Argument order of `andMap` flipped.
+
 ### 4.0.0
 * Upgraded for 0.18.
 * Argument order of `andThen` flipped.
