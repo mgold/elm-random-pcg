@@ -510,16 +510,16 @@ map5 func (Generator genA) (Generator genB) (Generator genC) (Generator genD) (G
 
     randomPerson : Generator Person
     randomPerson =
-      person `map` genFirstName
-          `andMap` genLastName
-          `andMap` genBirthday
-          `andMap` genPhoneNumber
-          `andMap` genAddress
-          `andMap` genEmail
+       map person genFirstName
+           |> andMap genLastName
+           |> andMap genBirthday
+           |> andMap genPhoneNumber
+           |> andMap genAddress
+           |> andMap genEmail
 -}
-andMap : Generator (a -> b) -> Generator a -> Generator b
+andMap : Generator a -> Generator (a -> b) -> Generator b
 andMap =
-    map2 (<|)
+    map2 (|>)
 
 
 {-| Chain random operations by providing a callback that accepts a
