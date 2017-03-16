@@ -153,6 +153,7 @@ initialSeed : Int -> Seed
 initialSeed x =
     let
         (Seed state1 incr) =
+            -- The magic constant is from Numerical Recipes and is inlined for perf.
             next (Seed 0 1013904223)
 
         state2 =
@@ -161,15 +162,9 @@ initialSeed x =
         next (Seed state2 incr)
 
 
-
-{--
-The magic constants 1013904223 and 1664525 are from Numerical Recipes. They are
-inlined for performance.
---}
-
-
 next : Seed -> Seed
 next (Seed state0 incr) =
+    -- The magic constant is from Numerical Recipes and is inlined for perf.
     Seed ((state0 * 1664525) + incr |> Bitwise.shiftRightZfBy 0) incr
 
 
