@@ -24,6 +24,6 @@ It seems that the package website doesn't show modules in type annotations, so h
     fission : Random.Generator (Random.Pcg.Seed)
 
 -}
-fission : Random.Generator (Random.Pcg.Seed)
+fission : Random.Generator Random.Pcg.Seed
 fission =
     Random.int 0 0xFFFFFFFF |> Random.map Random.Pcg.initialSeed
