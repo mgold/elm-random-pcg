@@ -704,7 +704,7 @@ maybe genBool genA =
 
 
 {-| A generator that produces a seed that is independent of any other seed in
-the program. These seeds will generate their own unqiue sequences of random
+the program. These seeds will generate their own unique sequences of random
 values. They are useful when you need an unknown amount of randomness *later*
 but can request only a fixed amount of randomness *now*.
 
