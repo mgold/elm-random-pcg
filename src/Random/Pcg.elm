@@ -747,7 +747,7 @@ independentSeed =
                 Finally step it once before use.
                 --}
                 incr =
-                    (Bitwise.xor b c) |> Bitwise.or 1
+                    (Bitwise.xor b c) |> Bitwise.or 1 |> Bitwise.shiftRightZfBy 0
             in
                 ( seed1, next <| Seed state incr )
 
