@@ -15,7 +15,7 @@ produces far less predictable and biased output, especially if you use thousands
 with other helpful functions for composing generators. Particularly interesting is `independentSeed`, which allows for
 lazy lists and isolated components to generate as much randomness as they need, when they need it.
 
-* **Performace.** This library will generate floats about 3.5 times faster than core, and ints do not regress. These
+* **Performance.** This library will generate floats about 3.5 times faster than core, and ints do not regress. These
 figures stand to improve pending some optimizations to the compiler. You can see the [full
 benchmark results](https://github.com/mgold/elm-random-pcg/issues/5#issuecomment-236398261).
 
