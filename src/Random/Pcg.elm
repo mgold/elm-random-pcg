@@ -105,7 +105,7 @@ to set up anyway.
 generate : (a -> msg) -> Generator a -> Cmd msg
 generate toMsg generator =
     Time.now
-        |> Task.map (round >> initialSeed >> step generator >> Tuple.first)
+        |> Task.map (Time.posixToMillis >> toFloat >> round >> initialSeed >> step generator >> Tuple.first)
         |> Task.perform toMsg
 
 
@@ -219,7 +219,7 @@ int a b =
                     let
                         threshhold =
                             -- essentially: period % max
-                            rem (-range |> Bitwise.shiftRightZfBy 0) range |> Bitwise.shiftRightZfBy 0
+                            remainderBy (-range |> Bitwise.shiftRightZfBy 0) range |> Bitwise.shiftRightZfBy 0
 
                         accountForBias : Seed -> ( Int, Seed )
                         accountForBias seed =
@@ -234,7 +234,7 @@ int a b =
                                     -- in practice this recurses almost never
                                     accountForBias seedN
                                 else
-                                    ( rem x range + lo, seedN )
+                                    ( remainderBy x range + lo, seedN )
                     in
                         accountForBias seed0
 
@@ -326,7 +326,7 @@ wide and 200 pixels tall.
 -}
 pair : Generator a -> Generator b -> Generator ( a, b )
 pair genA genB =
-    map2 (,) genA genB
+    map2 (\a b -> (a,b)) genA genB
 
 
 {-| Create a list of random values of a given length.
@@ -344,22 +344,22 @@ pair genA genB =
         list 10 <| pair (int 0 100) (int 0 100)
 -}
 list : Int -> Generator a -> Generator (List a)
-list n (Generator generate) =
+list n (Generator gen) =
     Generator <|
         \seed ->
-            listHelp [] n generate seed
+            listHelp [] n gen seed
 
 
 listHelp : List a -> Int -> (Seed -> ( a, Seed )) -> Seed -> ( List a, Seed )
-listHelp list n generate seed =
+listHelp elementList n gen seed =
     if n < 1 then
-        ( list, seed )
+        ( elementList, seed )
     else
         let
             ( value, newSeed ) =
-                generate seed
+                gen seed
         in
-            listHelp (value :: list) (n - 1) generate newSeed
+            listHelp (value :: elementList) (n - 1) gen newSeed
 
 
 {-| Create a generator that always produces the value provided. This is useful
@@ -673,8 +673,8 @@ frequency pairs =
         total =
             List.sum <| List.map (Tuple.first >> abs) pairs
 
-        pick choices n =
-            case choices of
+        pick elements n =
+            case elements of
                 ( k, g ) :: rest ->
                     if n <= k then
                         g
@@ -682,7 +682,7 @@ frequency pairs =
                         pick rest (n - k)
 
                 _ ->
-                    Debug.crash "Empty list passed to Random.Pcg.frequency!"
+                    Debug.todo "Empty list passed to Random.Pcg.frequency!"
     in
         float 0 total |> andThen (pick pairs)
 
@@ -738,7 +738,7 @@ independentSeed =
                     int 0 0xFFFFFFFF
 
                 ( ( state, b, c ), seed1 ) =
-                    step (map3 (,,) gen gen gen) seed0
+                    step (map3 (\genA genB genC -> (genA,genB,genC)) gen gen gen) seed0
 
                 {--
                 Although it probably doesn't hold water theoretically, xor two
@@ -830,7 +830,7 @@ Do not inspect or change the resulting JSON value.
 -}
 toJson : Seed -> Json.Encode.Value
 toJson (Seed state incr) =
-    Json.Encode.list [ Json.Encode.int state, Json.Encode.int incr ]
+    Json.Encode.list Json.Encode.int [ state, incr ]
 
 
 {-| A JSON decoder that can recover seeds encoded using `toJson`. Alternatively,
